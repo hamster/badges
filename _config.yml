@@ -1,0 +1,28 @@
+title: "The Hamster Badge Museum"
+description: "A curated collection of electronic conference badges from DEF CON, SAINTCON, and beyond."
+url: "https://hamster.github.io"
+baseurl: "/badges"
+
+collections:
+  badges:
+    output: true
+    permalink: /:path/
+
+defaults:
+  - scope:
+      path: ""
+      type: badges
+    values:
+      layout: badge
+
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - scripts/
+  - _template/
+  - README.md
+  - vendor/

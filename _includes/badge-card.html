@@ -1,0 +1,26 @@
+{% assign b = include.badge %}
+{% assign has_image = false %}
+{% if b.images and b.images.size > 0 %}
+  {% assign has_image = true %}
+  {% assign first_img = b.images | first %}
+  {% assign thumb_url = '/assets/badges/' | append: b.con | append: '/' | append: b.slug | append: '/' | append: first_img.filename | relative_url %}
+{% endif %}
+
+<a href="{{ b.url | relative_url }}" class="badge-card">
+  {% if has_image %}
+    <div class="badge-card-image">
+      <img src="{{ thumb_url }}" alt="{{ b.title }}" loading="lazy">
+    </div>
+  {% else %}
+    <div class="badge-card-image-placeholder">[ no photo ]</div>
+  {% endif %}
+  <div class="badge-card-body">
+    <div class="badge-card-title">{{ b.title }}</div>
+    <div class="badge-card-meta">{{ b.maker | default: '—' }} &middot; {{ b.year }}</div>
+    <div class="badge-tags">
+      {% if b.type %}<span class="tag tag-type-{{ b.type }}">{{ b.type }}</span>{% endif %}
+      {% if b.con %}<span class="tag tag-con-{{ b.con }}">{{ b.con }}</span>{% endif %}
+      {% if b.mcu and b.mcu != '' %}<span class="tag">{{ b.mcu }}</span>{% endif %}
+    </div>
+  </div>
+</a>

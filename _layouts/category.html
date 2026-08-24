@@ -1,0 +1,35 @@
+---
+layout: default
+---
+
+{% assign filtered = site.badges | where: "type", page.badge_type | sort: "year" | reverse %}
+{% assign badge_count = site.badges | where: "type", "badge" | size %}
+{% assign sao_count = site.badges | where: "type", "sao" | size %}
+{% assign mini_count = site.badges | where: "type", "minibadge" | size %}
+
+<div class="page-header">
+  <h1>{{ page.title }}</h1>
+  {% if page.description %}<p class="lead">{{ page.description }}</p>{% endif %}
+</div>
+
+<div class="category-strip">
+  <a href="{{ '/' | relative_url }}" class="cat-chip">All ({{ site.badges | size }})</a>
+  <a href="{{ '/badge/' | relative_url }}" class="cat-chip{% if page.badge_type == 'badge' %} active{% endif %}">Badges ({{ badge_count }})</a>
+  <a href="{{ '/sao/' | relative_url }}" class="cat-chip{% if page.badge_type == 'sao' %} active{% endif %}">SAOs ({{ sao_count }})</a>
+  <a href="{{ '/minibadge/' | relative_url }}" class="cat-chip{% if page.badge_type == 'minibadge' %} active{% endif %}">Minibadges ({{ mini_count }})</a>
+  <a href="{{ '/other/' | relative_url }}" class="cat-chip{% if page.badge_type == 'other' %} active{% endif %}">Other</a>
+</div>
+
+{% if filtered.size == 0 %}
+<div class="empty-state">
+  <div class="empty-state-icon">📡</div>
+  <p>No {{ page.badge_type }}s cataloged yet.</p>
+  <p>Run <code>python scripts/new-badge.py</code> to add the first one.</p>
+</div>
+{% else %}
+<div class="badge-grid">
+  {% for badge in filtered %}
+    {% include badge-card.html badge=badge %}
+  {% endfor %}
+</div>
+{% endif %}

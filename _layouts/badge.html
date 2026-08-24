@@ -1,0 +1,153 @@
+---
+layout: default
+---
+
+{% assign img_base = '/assets/badges/' | append: page.con | append: '/' | append: page.slug | append: '/' %}
+
+<div class="breadcrumb">
+  <a href="{{ '/' | relative_url }}">museum</a>
+  <span class="sep">/</span>
+  <a href="{{ '/' | append: page.type | append: '/' | relative_url }}">{{ page.type | default: 'other' }}</a>
+  <span class="sep">/</span>
+  <span>{{ page.title }}</span>
+</div>
+
+<div class="badge-detail-header">
+  <h1>{{ page.title }}</h1>
+  <div class="badge-detail-meta-row">
+    {% if page.type %}<span class="tag tag-type-{{ page.type }}">{{ page.type | upcase }}</span>{% endif %}
+    {% if page.con %}<span class="tag tag-con-{{ page.con }}">{{ page.con | upcase }}</span>{% endif %}
+    {% if page.year %}<span class="tag">{{ page.year }}</span>{% endif %}
+    {% if page.status == 'stub' %}<span class="tag tag-status-stub">stub</span>{% endif %}
+    {% if page.status == 'complete' %}<span class="tag tag-status-complete">complete</span>{% endif %}
+  </div>
+</div>
+
+<div class="badge-detail-body">
+
+  <div class="badge-detail-left">
+    <div class="badge-gallery">
+      {% if page.images and page.images.size > 0 %}
+        {% assign first_img = page.images | first %}
+        <div class="gallery-main" id="gallery-main">
+          <img src="{{ img_base | append: first_img.filename | relative_url }}"
+               alt="{{ first_img.caption | default: page.title }}"
+               id="gallery-main-img">
+        </div>
+        {% if page.images.size > 1 %}
+          <div class="gallery-thumbs">
+            {% for image in page.images %}
+              <div class="gallery-thumb{% if forloop.first %} active{% endif %}"
+                   data-src="{{ img_base | append: image.filename | relative_url }}"
+                   data-alt="{{ image.caption | default: page.title | escape }}">
+                <img src="{{ img_base | append: image.filename | relative_url }}"
+                     alt="{{ image.caption | default: page.title }}">
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="gallery-main">
+          <div class="gallery-main-placeholder">[ no images yet ]</div>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="badge-links">
+      {% if page.source_repo and page.source_repo != '' %}
+        <a href="{{ page.source_repo }}" class="source-link" target="_blank" rel="noopener">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          Source / Repo
+        </a>
+      {% endif %}
+      {% if page.purchase_url and page.purchase_url != '' %}
+        <a href="{{ page.purchase_url }}" class="source-link" target="_blank" rel="noopener">
+          ⊕ Where to get it
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="badge-specs">
+    <div class="specs-header">Specifications</div>
+
+    {% if page.maker and page.maker != '' %}
+    <div class="spec-row">
+      <div class="spec-label">Maker</div>
+      <div class="spec-value">{{ page.maker }}</div>
+    </div>
+    {% endif %}
+
+    {% if page.event and page.event != '' %}
+    <div class="spec-row">
+      <div class="spec-label">Event</div>
+      <div class="spec-value">{{ page.event }}</div>
+    </div>
+    {% endif %}
+
+    {% if page.year %}
+    <div class="spec-row">
+      <div class="spec-label">Year</div>
+      <div class="spec-value">{{ page.year }}</div>
+    </div>
+    {% endif %}
+
+    {% if page.mcu and page.mcu != '' %}
+    <div class="spec-row">
+      <div class="spec-label">MCU</div>
+      <div class="spec-value font-mono">{{ page.mcu }}</div>
+    </div>
+    {% endif %}
+
+    {% if page.battery and page.battery != '' %}
+    <div class="spec-row">
+      <div class="spec-label">Battery</div>
+      <div class="spec-value">{{ page.battery }}</div>
+    </div>
+    {% endif %}
+
+    {% if page.interface and page.interface != '' %}
+    <div class="spec-row">
+      <div class="spec-label">Interface</div>
+      <div class="spec-value">{{ page.interface }}</div>
+    </div>
+    {% endif %}
+
+    {% if page.connectivity and page.connectivity.size > 0 %}
+    <div class="spec-row">
+      <div class="spec-label">Wireless</div>
+      <div class="spec-value">
+        {% for item in page.connectivity %}<span class="tag">{{ item }}</span> {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if page.features and page.features.size > 0 %}
+    <div class="spec-row">
+      <div class="spec-label">Features</div>
+      <div class="spec-value">
+        {% for item in page.features %}<span class="tag">{{ item }}</span> {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<div class="badge-notes">
+  <h2>Notes</h2>
+  <div class="badge-notes-content">
+    {{ content }}
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.gallery-thumb').forEach(function(thumb) {
+  thumb.addEventListener('click', function() {
+    document.getElementById('gallery-main-img').src = this.dataset.src;
+    document.getElementById('gallery-main-img').alt = this.dataset.alt;
+    document.querySelectorAll('.gallery-thumb').forEach(function(t) { t.classList.remove('active'); });
+    this.classList.add('active');
+  });
+});
+</script>
