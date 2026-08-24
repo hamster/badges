@@ -66,11 +66,6 @@ layout: default
           Source / Repo
         </a>
       {% endif %}
-      {% if page.purchase_url and page.purchase_url != '' %}
-        <a href="{{ page.purchase_url }}" class="source-link" target="_blank" rel="noopener">
-          ⊕ Where to get it
-        </a>
-      {% endif %}
       {% if page.sold_at and page.sold_at.size > 0 %}
         {% for store in page.sold_at %}
           {% if store.url and store.url != '' %}
@@ -208,32 +203,38 @@ layout: default
     </div>
     {% endif %}
 
-    {% comment %} Host SAO ports — how many and what they provide {% endcomment %}
+    {% comment %} Host SAO ports — count on one row, signals on the next {% endcomment %}
     {% if page.sao_ports and page.sao_ports.count > 0 %}
     <div class="spec-row">
       <div class="spec-label">SAO ports</div>
+      <div class="spec-value">{{ page.sao_ports.count }}</div>
+    </div>
+    {% if page.sao_ports.power != '' or page.sao_ports.implements.size > 0 %}
+    <div class="spec-row">
+      <div class="spec-label">SAO port signals</div>
       <div class="spec-value">
-        {{ page.sao_ports.count }}
-        {% if page.sao_ports.power and page.sao_ports.power != '' %}&middot; {{ page.sao_ports.power }}{% endif %}
-        {% if page.sao_ports.implements and page.sao_ports.implements.size > 0 %}
-          &middot; {% for item in page.sao_ports.implements %}<span class="tag">{{ item }}</span> {% endfor %}
-        {% endif %}
+        {% if page.sao_ports.power and page.sao_ports.power != '' %}<span class="tag">{{ page.sao_ports.power }}</span> {% endif %}
+        {% for item in page.sao_ports.implements %}<span class="tag">{{ item }}</span> {% endfor %}
       </div>
     </div>
     {% endif %}
+    {% endif %}
 
-    {% comment %} Host minibadge ports — how many and what they provide {% endcomment %}
+    {% comment %} Host minibadge ports — count on one row, signals on the next {% endcomment %}
     {% if page.minibadge_ports and page.minibadge_ports.count > 0 %}
     <div class="spec-row">
       <div class="spec-label">MB ports</div>
+      <div class="spec-value">{{ page.minibadge_ports.count }}</div>
+    </div>
+    {% if page.minibadge_ports.power != '' or page.minibadge_ports.implements.size > 0 %}
+    <div class="spec-row">
+      <div class="spec-label">MB port signals</div>
       <div class="spec-value">
-        {{ page.minibadge_ports.count }}
-        {% if page.minibadge_ports.power and page.minibadge_ports.power != '' %}&middot; {{ page.minibadge_ports.power }}{% endif %}
-        {% if page.minibadge_ports.implements and page.minibadge_ports.implements.size > 0 %}
-          &middot; {% for item in page.minibadge_ports.implements %}<span class="tag">{{ item }}</span> {% endfor %}
-        {% endif %}
+        {% if page.minibadge_ports.power and page.minibadge_ports.power != '' %}<span class="tag">{{ page.minibadge_ports.power }}</span> {% endif %}
+        {% for item in page.minibadge_ports.implements %}<span class="tag">{{ item }}</span> {% endfor %}
       </div>
     </div>
+    {% endif %}
     {% endif %}
 
     {% if page.interface and page.interface != '' and page.interface != 'none' %}

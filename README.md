@@ -1,4 +1,4 @@
-# The Hamster Badge Museum
+# the hamster badge museum
 
 A personal catalog of electronic conference badges — DEF CON, SAINTCON, and beyond — with photos, specs, and source links. Built with Jekyll and hosted on GitHub Pages at **https://hamster.github.io/badges**.
 
@@ -28,13 +28,13 @@ The site will be available at `http://localhost:4000/badges/`.
 ```
 _badges/            Badge content, organized by con then slug
   defcon/
-    dc32-2024/
+    dczia-zippy-2025/
       index.md      Badge frontmatter + notes (Markdown)
 
 assets/
   badges/           Badge photos, organized to match _badges/
     defcon/
-      dc32-2024/
+      dczia-zippy-2025/
         front.jpg
         back.jpg
 
@@ -56,6 +56,8 @@ badge/              Category landing page — type: badge
 sao/                Category landing page — type: sao
 minibadge/          Category landing page — type: minibadge
 other/              Category landing page — type: other
+
+TODO.md             Pending work — badges to fill in, site tasks
 ```
 
 ---
@@ -89,6 +91,20 @@ Change `status: stub` → `status: wip` as you fill things in, and `status: comp
 
 ---
 
+## Filtering and sorting
+
+The home page has a client-side filter bar — no page reload needed.
+
+- **Type chips** — filter by badge type (badge, SAO, minibadge, etc.); only types that exist in the collection are shown
+- **Search** — free-text match against title, maker names, and group
+- **Year / Con dropdowns** — populated automatically from the badges that exist
+- **Sort** — year descending (default), year ascending, title A–Z, title Z–A
+- **"✕ clear"** — appears only when filters are active; resets everything
+
+The dedicated category pages (`/badge/`, `/sao/`, etc.) remain as direct-link targets with server-side filtering.
+
+---
+
 ## Frontmatter field reference
 
 Fields are all optional except `title`, `slug`, `year`, `con`, and `type`. The layout gracefully skips any field that is blank or missing, so add only what you know.
@@ -112,13 +128,13 @@ Fields are all optional except `title`, `slug`, `year`, `con`, and `type`. The l
 | `power.sources` | list | For SAOs/minibadges — `[battery, usb, sao]` (any subset) |
 | `power.current_ma` | integer | Input current draw in mA (SAO/minibadge) |
 | `sao.version` | string | SAO device only — `SAOv1` \| `SAOv2` \| `SAOv3` |
-| `sao.implements` | list | SAO device only — pins this device uses: `[i2c, gpio1, gpio2, 3v3, gnd]` |
-| `minibadge.implements` | list | Minibadge device only — signals from the spec it implements: `[i2c, clk, gpio, 3v3, gnd]` |
+| `sao.implements` | list | SAO device only — pins this device uses: `[i2c, gpio1, gpio2, 3v3]` |
+| `minibadge.implements` | list | Minibadge device only — signals from the spec it implements: `[i2c, clk, gpio, 3v3]` |
 | `sao_ports.count` | integer | Number of SAO host ports on this badge |
-| `sao_ports.implements` | list | Signals provided to connected SAOs: `[i2c, gpio, 3v3, gnd]` |
+| `sao_ports.implements` | list | Signals provided to connected SAOs: `[i2c, gpio, 3v3]` |
 | `sao_ports.power` | string | Voltage on the SAO power pin: `3v3` \| `vbat` \| `5v` |
 | `minibadge_ports.count` | integer | Number of minibadge host ports on this badge |
-| `minibadge_ports.implements` | list | Signals provided to connected minibadges: `[i2c, clk, gpio, 3v3, gnd]` |
+| `minibadge_ports.implements` | list | Signals provided to connected minibadges: `[i2c, clk, gpio, 3v3]` |
 | `minibadge_ports.power` | string | Voltage on the minibadge power pin: `3v3` \| `vbat` \| `5v` |
 | `interface` | string | USB connector: `none` \| `USB-C` \| `micro-USB` \| `mini-USB` |
 | `programming` | string | Flash/debug interface: `JTAG` \| `SWD` \| `UART` \| `USB-DFU` \| `other` |
@@ -129,8 +145,8 @@ Fields are all optional except `title`, `slug`, `year`, `con`, and `type`. The l
 | `acquisition.source` | string | Where / how you got it |
 | `docs_url` | string | Documentation URL (Hackaday, wiki, project page) |
 | `source_repo` | string | Source code / schematics repo URL |
-| `sold_at` | list | `[{vendor: "Tindie", url: "https://..."}]` — all known storefronts |
-| `purchase_url` | string | Primary current purchase URL (short-form alternative to `sold_at`) |
+| `sold_at` | list | `[{vendor: "Tindie", url: "https://..."}]` — all known storefronts (preferred) |
+| `purchase_url` | string | Single purchase URL — superseded by `sold_at`, kept for compatibility |
 | `images` | list | `[{filename: "front.jpg", caption: "Front of badge"}]` — first image is the card thumbnail |
 | `status` | string | `stub` \| `wip` \| `complete` |
 
@@ -181,7 +197,9 @@ Use kebab-case. Order in the `images:` list determines gallery order; first entr
 
 1. Add the new value to the relevant list in `scripts/new-badge.py`
 2. If it's a new `con`, add a CSS rule in `assets/css/main.css` for `.tag-con-{newcon}` if you want a distinct color
-3. If it's a new `type` that warrants its own category page, create `{type}/index.md` using the pattern from `badge/index.md`
+3. If it's a new `type`:
+   - The home page type filter chip appears automatically once a badge of that type exists
+   - If you want a dedicated category landing page, create `{type}/index.md` using the pattern from `badge/index.md`
 
 ---
 

@@ -11,7 +11,10 @@
 <body>
   <nav class="site-nav">
     <div class="nav-inner">
-      <a href="{{ '/' | relative_url }}" class="nav-brand">{{ site.title }}</a>
+      <a href="{{ '/' | relative_url }}" class="nav-brand">
+        <img src="https://avatars.githubusercontent.com/u/412629" alt="" class="nav-logo" width="28" height="28">
+        {{ site.title }}
+      </a>
       <ul class="nav-links">
         <li><a href="{{ '/' | relative_url }}"{% if page.url == '/' %} class="active"{% endif %}>All</a></li>
         <li><a href="{{ '/badge/' | relative_url }}"{% if page.url contains '/badge/' %} class="active"{% endif %}>Badges</a></li>

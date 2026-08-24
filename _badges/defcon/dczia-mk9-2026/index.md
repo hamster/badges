@@ -19,10 +19,10 @@ power:
   current_ma: null
 sao_ports:
   count: 2
-  implements: [i2c, gpio, 3v3, gnd]
+  implements: [i2c, gpio, 3v3]
   power: 3v3
 interface: USB-C
-programming: other
+programming: USB-DFU
 connectivity: []
 features: ["buttons", "accelerometer", "neopixels"]
 rarity: "small-run"
@@ -34,7 +34,7 @@ source_repo: "https://github.com/dczia/mk9-badge"
 sold_at: 
   - vendor: "UberFlux"
     url: "https://uberflux.com/product/HAMST-DCZIA-2026"
-purchase_url: "UberFlux"
+purchase_url: ""
 images: []
 status: stub
 ---

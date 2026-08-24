@@ -1,4 +1,4 @@
-title: "The Hamster Badge Museum"
+title: "the hamster badge museum"
 description: "A curated collection of electronic conference badges from DEF CON, SAINTCON, and beyond."
 url: "https://hamster.github.io"
 baseurl: "/badges"
@@ -25,4 +25,5 @@ exclude:
   - scripts/
   - _template/
   - README.md
+  - TODO.md
   - vendor/

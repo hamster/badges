@@ -19,10 +19,10 @@ power:
   current_ma: null
 sao_ports:
   count: 1
-  implements: [i2c, gpio, 3v3, gnd]
+  implements: [i2c, gpio, 3v3]
   power: 3v3
 interface: USB-C
-programming: other
+programming: USB-DFU
 connectivity: []
 features: ["microphone", "accelerometer", "neopixels", "rotary encoder"]
 rarity: "small-run"
@@ -34,7 +34,7 @@ source_repo: "https://github.com/dczia/Defcon32-Badge"
 sold_at: 
   - vendor: "Tindie"
     url: "https://www.tindie.com/products/hamster/2024-dczia-badge-the-ziatron/"
-purchase_url: "Tindie"
+purchase_url: ""
 images: []
 status: stub
 ---

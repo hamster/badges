@@ -19,10 +19,10 @@ power:
   current_ma: null
 sao_ports:
   count: 1
-  implements: [3v3, gnd]
+  implements: [3v3]
   power: 3v3
 interface: USB-C
-programming: other
+programming: USB-DFU
 connectivity: [wifi, bluetooth]
 features: ["neopixel", "eurorack", "buttons", "rotary encoder", "audio", "speaker"]
 rarity: "small-run"
@@ -34,7 +34,7 @@ source_repo: "https://github.com/dczia/Defcon31-Badge"
 sold_at: 
   - vendor: "Tindie"
     url: "https://www.tindie.com/products/hamster/dczia-electric-sampler/"
-purchase_url: "Tindie"
+purchase_url: ""
 images: []
 status: stub
 ---

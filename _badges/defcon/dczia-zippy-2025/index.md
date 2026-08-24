@@ -19,10 +19,10 @@ power:
   current_ma: null
 sao_ports:
   count: 1
-  implements: [i2c, gpio, 3v3, gnd]
+  implements: [i2c, gpio, 3v3]
   power: 3v3
 interface: USB-C
-programming: other
+programming: USB-DFU
 connectivity: []
 features: ["neopixels", "joystick", "accelerometer", "microphone"]
 rarity: "small-run"
@@ -34,7 +34,7 @@ source_repo: "https://github.com/dczia/zippy-badge"
 sold_at: 
   - vendor: "Tindie"
     url: "https://www.tindie.com/products/hamster/2025-dczia-badge-zippy/"
-purchase_url: "Tindie"
+purchase_url: ""
 images: []
 status: stub
 ---

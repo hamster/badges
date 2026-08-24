@@ -6,7 +6,7 @@
   {% assign thumb_url = '/assets/badges/' | append: b.con | append: '/' | append: b.slug | append: '/' | append: first_img.filename | relative_url %}
 {% endif %}
 
-{% comment %} Resolve display name: group > makers list > legacy maker string {% endcomment %}
+{% comment %} Resolve display credit: group > makers list > legacy maker string {% endcomment %}
 {% if b.group and b.group != '' %}
   {% assign display_credit = b.group %}
 {% elsif b.makers and b.makers.size > 0 %}
@@ -17,7 +17,16 @@
   {% assign display_credit = '—' %}
 {% endif %}
 
-<a href="{{ b.url | relative_url }}" class="badge-card">
+{% comment %} Build searchable text for JS filtering {% endcomment %}
+{% assign makers_str = b.makers | join: ' ' %}
+{% assign search_text = b.title | append: ' ' | append: makers_str | append: ' ' | append: b.group | append: ' ' | append: b.maker | downcase %}
+
+<a href="{{ b.url | relative_url }}" class="badge-card"
+   data-type="{{ b.type }}"
+   data-con="{{ b.con }}"
+   data-year="{{ b.year }}"
+   data-title="{{ b.title | downcase | escape }}"
+   data-search="{{ search_text | escape }}">
   {% if has_image %}
     <div class="badge-card-image">
       <img src="{{ thumb_url }}" alt="{{ b.title }}" loading="lazy">

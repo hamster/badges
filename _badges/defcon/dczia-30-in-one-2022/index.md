@@ -30,7 +30,7 @@ source_repo: "https://github.com/dczia/thirtyinone"
 sold_at: 
   - vendor: "Tindie"
     url: "https://www.tindie.com/products/hamster/dczia-30-in-one-defcon-30-badge/"
-purchase_url: "Tindie"
+purchase_url: ""
 images: []
 status: stub
 ---

@@ -66,29 +66,29 @@ sao:
   # Connector spec version: SAOv1 | SAOv2 | SAOv3
   version: ""
   # Which pins this SAO device actually uses:
-  #   i2c | gpio1 | gpio2 | 3v3 | gnd
+  #   i2c | gpio1 | gpio2 | 3v3
   implements: []
 
 # Minibadge device details (type: minibadge only)
 # Omit this block entirely for non-minibadge badges.
 minibadge:
   # Which signals from the SAINTCON minibadge spec this device implements:
-  #   i2c | clk | gpio | 3v3 | gnd
+  #   i2c | clk | gpio | 3v3
   implements: []
 
 # SAO ports this badge provides as a host (any type)
 # Omit if the badge has no SAO ports.
 # sao_ports:
 #   count: 4
-#   implements: [i2c, gpio, 3v3, gnd]   # signals provided to connected SAOs
-#   power: 3v3                           # 3v3 | vbat | 5v
+#   implements: [i2c, gpio, 3v3]   # signals provided to connected SAOs
+#   power: 3v3                     # 3v3 | vbat | 5v
 
 # Minibadge ports this badge provides as a host (any type)
 # Omit if the badge has no minibadge ports.
 # minibadge_ports:
 #   count: 8
-#   implements: [i2c, clk, 3v3, gnd]    # signals provided to connected minibadges
-#   power: 3v3                           # 3v3 | vbat | 5v
+#   implements: [i2c, clk, 3v3]    # signals provided to connected minibadges
+#   power: 3v3                     # 3v3 | vbat | 5v
 
 # USB connector (if any): none | USB-C | micro-USB | mini-USB
 interface: none

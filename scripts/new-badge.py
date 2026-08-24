@@ -32,16 +32,16 @@ POWER_SOURCES = ["battery", "usb", "sao"]
 SAO_VERSIONS = ["SAOv1", "SAOv2", "SAOv3"]
 
 # Pins/features an SAO device itself uses (as a peripheral on the connector)
-SAO_IMPLEMENTS = ["i2c", "gpio1", "gpio2", "3v3", "gnd"]
+SAO_IMPLEMENTS = ["i2c", "gpio1", "gpio2", "3v3"]
 
 # Signals a minibadge device implements from the SAINTCON minibadge spec
-MINIBADGE_IMPLEMENTS = ["i2c", "clk", "gpio", "3v3", "gnd"]
+MINIBADGE_IMPLEMENTS = ["i2c", "clk", "gpio", "3v3"]
 
 # Signals a host badge provides on its SAO ports
-SAO_PORT_FEATURES = ["i2c", "gpio", "3v3", "gnd"]
+SAO_PORT_FEATURES = ["i2c", "gpio", "3v3"]
 
 # Signals a host badge provides on its minibadge ports
-MINIBADGE_PORT_FEATURES = ["i2c", "clk", "gpio", "3v3", "gnd"]
+MINIBADGE_PORT_FEATURES = ["i2c", "clk", "gpio", "3v3"]
 
 # Voltage level of the power rail on host ports
 PORT_POWER = ["3v3", "vbat", "5v"]
