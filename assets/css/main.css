@@ -185,6 +185,8 @@ main { padding: 40px 0 80px; }
   transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
+.badge-card[hidden] { display: none; }
+
 .badge-card:hover {
   border-color: var(--accent-dim);
   transform: translateY(-2px);

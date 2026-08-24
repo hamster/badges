@@ -277,15 +277,13 @@ layout: default
     {% endif %}
 
     {% if page.acquisition %}
-      {% assign acq_has_date = page.acquisition.date and page.acquisition.date != '' %}
-      {% assign acq_has_source = page.acquisition.source and page.acquisition.source != '' %}
-      {% if acq_has_date or acq_has_source %}
+      {% if page.acquisition.date != '' or page.acquisition.source != '' %}
       <div class="spec-row">
         <div class="spec-label">Acquired</div>
         <div class="spec-value">
-          {% if acq_has_date %}{{ page.acquisition.date }}{% endif %}
-          {% if acq_has_date and acq_has_source %} &middot; {% endif %}
-          {% if acq_has_source %}{{ page.acquisition.source }}{% endif %}
+          {% if page.acquisition.date != '' %}{{ page.acquisition.date }}{% endif %}
+          {% if page.acquisition.date != '' and page.acquisition.source != '' %} &middot; {% endif %}
+          {% if page.acquisition.source != '' %}{{ page.acquisition.source }}{% endif %}
         </div>
       </div>
       {% endif %}
