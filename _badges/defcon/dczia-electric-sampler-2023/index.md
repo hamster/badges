@@ -1,0 +1,42 @@
+---
+layout: badge
+title: "Electric Sampler"
+slug: dczia-electric-sampler-2023
+year: 2023
+con: defcon
+event: "DEF CON 31"
+type: badge
+edition: "regular"
+makers: ["hamster"]
+group: "dczia"
+electronics: true
+mcu: "RP2040"
+display: "oled"
+power:
+  sources: []
+  battery: non-rechargeable
+  battery_cell: "AAA"
+  current_ma: null
+sao_ports:
+  count: 1
+  implements: [3v3, gnd]
+  power: 3v3
+interface: USB-C
+programming: other
+connectivity: [wifi, bluetooth]
+features: ["neopixel", "eurorack", "buttons", "rotary encoder", "audio", "speaker"]
+rarity: "small-run"
+acquisition:
+  date: "2023-08-01"
+  source: "self"
+docs_url: "https://github.com/dczia/Defcon31-Badge"
+source_repo: "https://github.com/dczia/Defcon31-Badge"
+sold_at: 
+  - vendor: "Tindie"
+    url: "https://www.tindie.com/products/hamster/dczia-electric-sampler/"
+purchase_url: "Tindie"
+images: []
+status: stub
+---
+
+*Stub — add notes, specs, and photos.*

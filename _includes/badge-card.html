@@ -6,6 +6,17 @@
   {% assign thumb_url = '/assets/badges/' | append: b.con | append: '/' | append: b.slug | append: '/' | append: first_img.filename | relative_url %}
 {% endif %}
 
+{% comment %} Resolve display name: group > makers list > legacy maker string {% endcomment %}
+{% if b.group and b.group != '' %}
+  {% assign display_credit = b.group %}
+{% elsif b.makers and b.makers.size > 0 %}
+  {% assign display_credit = b.makers | join: ", " %}
+{% elsif b.maker and b.maker != '' %}
+  {% assign display_credit = b.maker %}
+{% else %}
+  {% assign display_credit = '—' %}
+{% endif %}
+
 <a href="{{ b.url | relative_url }}" class="badge-card">
   {% if has_image %}
     <div class="badge-card-image">
@@ -16,7 +27,7 @@
   {% endif %}
   <div class="badge-card-body">
     <div class="badge-card-title">{{ b.title }}</div>
-    <div class="badge-card-meta">{{ b.maker | default: '—' }} &middot; {{ b.year }}</div>
+    <div class="badge-card-meta">{{ display_credit }} &middot; {{ b.year }}</div>
     <div class="badge-tags">
       {% if b.type %}<span class="tag tag-type-{{ b.type }}">{{ b.type }}</span>{% endif %}
       {% if b.con %}<span class="tag tag-con-{{ b.con }}">{{ b.con }}</span>{% endif %}

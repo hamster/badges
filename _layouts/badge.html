@@ -18,6 +18,7 @@ layout: default
     {% if page.type %}<span class="tag tag-type-{{ page.type }}">{{ page.type | upcase }}</span>{% endif %}
     {% if page.con %}<span class="tag tag-con-{{ page.con }}">{{ page.con | upcase }}</span>{% endif %}
     {% if page.year %}<span class="tag">{{ page.year }}</span>{% endif %}
+    {% if page.edition and page.edition != '' %}<span class="tag">{{ page.edition }}</span>{% endif %}
     {% if page.status == 'stub' %}<span class="tag tag-status-stub">stub</span>{% endif %}
     {% if page.status == 'complete' %}<span class="tag tag-status-complete">complete</span>{% endif %}
   </div>
@@ -54,6 +55,11 @@ layout: default
     </div>
 
     <div class="badge-links">
+      {% if page.docs_url and page.docs_url != '' %}
+        <a href="{{ page.docs_url }}" class="source-link" target="_blank" rel="noopener">
+          📄 Documentation
+        </a>
+      {% endif %}
       {% if page.source_repo and page.source_repo != '' %}
         <a href="{{ page.source_repo }}" class="source-link" target="_blank" rel="noopener">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -65,16 +71,38 @@ layout: default
           ⊕ Where to get it
         </a>
       {% endif %}
+      {% if page.sold_at and page.sold_at.size > 0 %}
+        {% for store in page.sold_at %}
+          {% if store.url and store.url != '' %}
+            <a href="{{ store.url }}" class="source-link" target="_blank" rel="noopener">
+              ⊕ {{ store.vendor | default: 'Buy' }}
+            </a>
+          {% endif %}
+        {% endfor %}
+      {% endif %}
     </div>
   </div>
 
   <div class="badge-specs">
     <div class="specs-header">Specifications</div>
 
-    {% if page.maker and page.maker != '' %}
+    {% comment %} Maker(s): prefer new list, fall back to legacy single string {% endcomment %}
+    {% if page.makers and page.makers.size > 0 %}
+    <div class="spec-row">
+      <div class="spec-label">Maker{% if page.makers.size > 1 %}s{% endif %}</div>
+      <div class="spec-value">{{ page.makers | join: ", " }}</div>
+    </div>
+    {% elsif page.maker and page.maker != '' %}
     <div class="spec-row">
       <div class="spec-label">Maker</div>
       <div class="spec-value">{{ page.maker }}</div>
+    </div>
+    {% endif %}
+
+    {% if page.group and page.group != '' %}
+    <div class="spec-row">
+      <div class="spec-label">Group</div>
+      <div class="spec-value">{{ page.group }}</div>
     </div>
     {% endif %}
 
@@ -92,6 +120,20 @@ layout: default
     </div>
     {% endif %}
 
+    {% if page.edition and page.edition != '' %}
+    <div class="spec-row">
+      <div class="spec-label">Edition</div>
+      <div class="spec-value">{{ page.edition }}</div>
+    </div>
+    {% endif %}
+
+    {% if page.electronics == false %}
+    <div class="spec-row">
+      <div class="spec-label">Electronics</div>
+      <div class="spec-value">None (entry / art badge)</div>
+    </div>
+    {% endif %}
+
     {% if page.mcu and page.mcu != '' %}
     <div class="spec-row">
       <div class="spec-label">MCU</div>
@@ -99,17 +141,112 @@ layout: default
     </div>
     {% endif %}
 
-    {% if page.battery and page.battery != '' %}
+    {% if page.display and page.display != '' and page.display != 'none' %}
+    <div class="spec-row">
+      <div class="spec-label">Display</div>
+      <div class="spec-value">{{ page.display }}</div>
+    </div>
+    {% endif %}
+
+    {% comment %} Power — new nested format {% endcomment %}
+    {% if page.power %}
+      {% if page.power.battery and page.power.battery != 'none' and page.power.battery != '' %}
+      <div class="spec-row">
+        <div class="spec-label">Battery</div>
+        <div class="spec-value">
+          {{ page.power.battery }}{% if page.power.battery_cell and page.power.battery_cell != '' %} &middot; {{ page.power.battery_cell }}{% endif %}
+        </div>
+      </div>
+      {% endif %}
+      {% if page.power.sources and page.power.sources.size > 0 %}
+      <div class="spec-row">
+        <div class="spec-label">Power in</div>
+        <div class="spec-value">
+          {% for src in page.power.sources %}<span class="tag">{{ src }}</span> {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      {% if page.power.current_ma %}
+      <div class="spec-row">
+        <div class="spec-label">Current draw</div>
+        <div class="spec-value font-mono">{{ page.power.current_ma }} mA</div>
+      </div>
+      {% endif %}
+    {% elsif page.battery and page.battery != '' %}
+    {% comment %} Legacy flat battery field — kept for old entries {% endcomment %}
     <div class="spec-row">
       <div class="spec-label">Battery</div>
       <div class="spec-value">{{ page.battery }}</div>
     </div>
     {% endif %}
 
-    {% if page.interface and page.interface != '' %}
+    {% comment %} SAO device — version and which pins this SAO uses {% endcomment %}
+    {% if page.sao %}
+      {% if page.sao.version and page.sao.version != '' %}
+      <div class="spec-row">
+        <div class="spec-label">SAO version</div>
+        <div class="spec-value font-mono">{{ page.sao.version }}</div>
+      </div>
+      {% endif %}
+      {% if page.sao.implements and page.sao.implements.size > 0 %}
+      <div class="spec-row">
+        <div class="spec-label">SAO pins used</div>
+        <div class="spec-value">
+          {% for item in page.sao.implements %}<span class="tag">{{ item }}</span> {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    {% endif %}
+
+    {% comment %} Minibadge device — which parts of the spec it implements {% endcomment %}
+    {% if page.minibadge and page.minibadge.implements and page.minibadge.implements.size > 0 %}
     <div class="spec-row">
-      <div class="spec-label">Interface</div>
+      <div class="spec-label">MB implements</div>
+      <div class="spec-value">
+        {% for item in page.minibadge.implements %}<span class="tag">{{ item }}</span> {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% comment %} Host SAO ports — how many and what they provide {% endcomment %}
+    {% if page.sao_ports and page.sao_ports.count > 0 %}
+    <div class="spec-row">
+      <div class="spec-label">SAO ports</div>
+      <div class="spec-value">
+        {{ page.sao_ports.count }}
+        {% if page.sao_ports.power and page.sao_ports.power != '' %}&middot; {{ page.sao_ports.power }}{% endif %}
+        {% if page.sao_ports.implements and page.sao_ports.implements.size > 0 %}
+          &middot; {% for item in page.sao_ports.implements %}<span class="tag">{{ item }}</span> {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% comment %} Host minibadge ports — how many and what they provide {% endcomment %}
+    {% if page.minibadge_ports and page.minibadge_ports.count > 0 %}
+    <div class="spec-row">
+      <div class="spec-label">MB ports</div>
+      <div class="spec-value">
+        {{ page.minibadge_ports.count }}
+        {% if page.minibadge_ports.power and page.minibadge_ports.power != '' %}&middot; {{ page.minibadge_ports.power }}{% endif %}
+        {% if page.minibadge_ports.implements and page.minibadge_ports.implements.size > 0 %}
+          &middot; {% for item in page.minibadge_ports.implements %}<span class="tag">{{ item }}</span> {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if page.interface and page.interface != '' and page.interface != 'none' %}
+    <div class="spec-row">
+      <div class="spec-label">USB</div>
       <div class="spec-value">{{ page.interface }}</div>
+    </div>
+    {% endif %}
+
+    {% if page.programming and page.programming != '' and page.programming != 'none' %}
+    <div class="spec-row">
+      <div class="spec-label">Programming</div>
+      <div class="spec-value font-mono">{{ page.programming }}</div>
     </div>
     {% endif %}
 
@@ -129,6 +266,28 @@ layout: default
         {% for item in page.features %}<span class="tag">{{ item }}</span> {% endfor %}
       </div>
     </div>
+    {% endif %}
+
+    {% if page.rarity and page.rarity != '' %}
+    <div class="spec-row">
+      <div class="spec-label">Rarity</div>
+      <div class="spec-value">{{ page.rarity }}</div>
+    </div>
+    {% endif %}
+
+    {% if page.acquisition %}
+      {% assign acq_has_date = page.acquisition.date and page.acquisition.date != '' %}
+      {% assign acq_has_source = page.acquisition.source and page.acquisition.source != '' %}
+      {% if acq_has_date or acq_has_source %}
+      <div class="spec-row">
+        <div class="spec-label">Acquired</div>
+        <div class="spec-value">
+          {% if acq_has_date %}{{ page.acquisition.date }}{% endif %}
+          {% if acq_has_date and acq_has_source %} &middot; {% endif %}
+          {% if acq_has_source %}{{ page.acquisition.source }}{% endif %}
+        </div>
+      </div>
+      {% endif %}
     {% endif %}
 
   </div>
