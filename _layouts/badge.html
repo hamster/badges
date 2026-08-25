@@ -342,7 +342,12 @@ layout: default
 <div class="badge-notes">
   <h2>Notes</h2>
   <div class="badge-notes-content">
-    {{ content }}
+    {% assign notes_trimmed = content | strip %}
+    {% if notes_trimmed != '' %}
+      {{ content }}
+    {% else %}
+      <p><em>No notes yet.</em></p>
+    {% endif %}
   </div>
 </div>
 

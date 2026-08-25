@@ -24,7 +24,7 @@ sao_ports:
 interface: USB-C
 programming: USB-DFU
 connectivity: []
-features: ["microphone", "accelerometer", "neopixels", "rotary encoder"]
+features: ["accelerometer", "microphone", "neopixels", "rotary encoder"]
 rarity: "small-run"
 acquisition:
   date: "2024-08-01"
@@ -35,8 +35,20 @@ sold_at:
   - vendor: "Tindie"
     url: "https://www.tindie.com/products/hamster/2024-dczia-badge-the-ziatron/"
 purchase_url: ""
-images: []
+images: 
+  - filename: "img20260825012528.jpg"
+    caption: ""
+    highlight: true
+  - filename: "img20260825012536.jpg"
+    caption: ""
+  - filename: "img20260825012541.jpg"
+    caption: ""
+  - filename: "img20260825012546.jpg"
+    caption: ""
+  - filename: "img20260825012629.jpg"
+    caption: ""
+videos: 
+  - filename: "vid20260825012448.mp4"
+    caption: ""
 status: stub
 ---
-
-*Stub — add notes, specs, and photos.*

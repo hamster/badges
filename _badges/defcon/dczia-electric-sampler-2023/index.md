@@ -24,7 +24,7 @@ sao_ports:
 interface: USB-C
 programming: USB-DFU
 connectivity: [wifi, bluetooth]
-features: ["neopixel", "eurorack", "buttons", "rotary encoder", "audio", "speaker"]
+features: ["audio", "buttons", "eurorack", "neopixel", "rotary encoder", "speaker"]
 rarity: "small-run"
 acquisition:
   date: "2023-08-01"
@@ -35,8 +35,10 @@ sold_at:
   - vendor: "Tindie"
     url: "https://www.tindie.com/products/hamster/dczia-electric-sampler/"
 purchase_url: ""
-images: []
+images: 
+  - filename: "dczia2023.jpg"
+    caption: ""
+videos: []
 status: stub
 ---
 
-*Stub — add notes, specs, and photos.*

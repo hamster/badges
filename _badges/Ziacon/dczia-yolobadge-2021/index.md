@@ -33,7 +33,9 @@ docs_url: "https://github.com/dczia/yolobadge"
 source_repo: "https://github.com/dczia/yolobadge"
 sold_at: []
 purchase_url: ""
-images: []
+images: 
+  - filename: "yolobadge-thumb.jpg"
+    caption: ""
 videos: []
 status: stub
 ---

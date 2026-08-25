@@ -247,7 +247,7 @@ def collect_fields(loaded, is_edit):
         else:
             f["notes"] = ask("New notes (single line — edit the file directly afterward for multi-line prose)", default="")
     else:
-        f["notes"] = None  # build_frontmatter falls back to the stub placeholder
+        f["notes"] = None  # build_frontmatter leaves the body empty
 
     # --- Photos / video — this tool can't manage attachments; see module
     # docstring. Editing carries the existing list through untouched;
@@ -329,7 +329,7 @@ Next steps:
          - filename: back.jpg
            caption: "Back of badge"
 
-  3. Replace the stub body with real notes.
+  3. Add real notes to the (currently empty) body.
   4. Set  status: complete  when done — or re-run this tool and choose
      "Edit an existing badge".
 """)

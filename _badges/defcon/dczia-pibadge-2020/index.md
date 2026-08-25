@@ -35,5 +35,3 @@ images:
 videos: []
 status: stub
 ---
-
-*Stub — add notes, specs, and photos.*

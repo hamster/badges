@@ -227,9 +227,6 @@ def yaml_media_block(items, indent=2):
 # Frontmatter builder — the single source of truth for badge index.md files
 # ---------------------------------------------------------------------------
 
-DEFAULT_STUB_NOTES = "*Stub — add notes, specs, and photos.*"
-
-
 def build_frontmatter(f):
     """Build a full badge index.md (frontmatter + body) from a dict of
     fields. `f` uses the same field names the CLI (badge_cli.py) collects,
@@ -280,7 +277,10 @@ def build_frontmatter(f):
     images_yaml = yaml_media_block(f.get("images", []))
     videos_yaml = yaml_media_block(f.get("videos", []))
     current_ma = f.get("current_ma") or ""
-    notes = f.get("notes") or DEFAULT_STUB_NOTES
+    # Leave the body empty rather than writing placeholder boilerplate —
+    # "*Stub — add notes…*" is shown as a hint (textarea placeholder / empty
+    # -state message) but should never itself land in a saved badge file.
+    notes = f.get("notes") or ""
 
     return f"""---
 layout: badge

@@ -29,8 +29,10 @@ docs_url: "https://github.com/lithochasm/ZiaCon3-Badge"
 source_repo: "https://github.com/lithochasm/ZiaCon3-Badge"
 sold_at: []
 purchase_url: ""
-images: []
+images: 
+  - filename: "hal9000.jpg"
+    caption: ""
+videos: []
 status: stub
 ---
 
-*Stub — add notes, specs, and photos.*

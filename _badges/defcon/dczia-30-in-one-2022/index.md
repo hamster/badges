@@ -31,8 +31,9 @@ sold_at:
   - vendor: "Tindie"
     url: "https://www.tindie.com/products/hamster/dczia-30-in-one-defcon-30-badge/"
 purchase_url: ""
-images: []
+images: 
+  - filename: "30in1.jpg"
+    caption: ""
+videos: []
 status: stub
 ---
-
-*Stub — add notes, specs, and photos.*

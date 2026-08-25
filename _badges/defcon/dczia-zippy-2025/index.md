@@ -52,5 +52,3 @@ videos:
     caption: ""
 status: wip
 ---
-
-*Stub — add notes, specs, and photos.*

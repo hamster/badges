@@ -24,7 +24,7 @@ sao_ports:
 interface: USB-C
 programming: USB-DFU
 connectivity: []
-features: ["buttons", "accelerometer", "neopixels"]
+features: ["accelerometer", "buttons", "neopixels"]
 rarity: "small-run"
 acquisition:
   date: "2026-08-01"
@@ -35,8 +35,22 @@ sold_at:
   - vendor: "UberFlux"
     url: "https://uberflux.com/product/HAMST-DCZIA-2026"
 purchase_url: ""
-images: []
+images: 
+  - filename: "img20260825012155.jpg"
+    caption: ""
+  - filename: "img20260825011837.jpg"
+    caption: ""
+    highlight: true
+  - filename: "img20260825011901.jpg"
+    caption: ""
+  - filename: "img20260825011908.jpg"
+    caption: ""
+  - filename: "img20260825012037.jpg"
+    caption: ""
+  - filename: "img20260825011844.jpg"
+    caption: ""
+videos: 
+  - filename: "vid20260825012231.mp4"
+    caption: ""
 status: stub
 ---
-
-*Stub — add notes, specs, and photos.*

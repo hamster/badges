@@ -29,9 +29,9 @@ docs_url: "https://github.com/dczia/Defcon25-Badge"
 source_repo: "https://github.com/dczia/Defcon25-Badge"
 sold_at: []
 purchase_url: ""
-images: []
+images: 
+  - filename: "badge-thumb-5.jpg"
+    caption: ""
 videos: []
 status: stub
 ---
-
-*Stub — add notes, specs, and photos.*
