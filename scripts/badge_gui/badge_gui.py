@@ -48,7 +48,13 @@ _SAFE_FILENAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
 FFMPEG_PATH = shutil.which("ffmpeg")
 MAX_VIDEO_UPLOAD_BYTES = 500 * 1024 * 1024  # generous cap on the *raw* upload
 VIDEO_MAX_SECONDS = 30
-VIDEO_MAX_WIDTH = 800
+VIDEO_MAX_WIDTH = 1080
+# Output is allowed up to ~10MB. -maxrate/-bufsize bound the worst case
+# (VIDEO_MAX_SECONDS at sustained peak rate) to comfortably stay under that
+# even though -crf alone doesn't guarantee a file size.
+VIDEO_TARGET_MAX_BYTES = 10 * 1024 * 1024
+VIDEO_MAXRATE = "2600k"
+VIDEO_BUFSIZE = "5200k"
 
 # One temp "draft" directory per server run holds uploaded-but-not-yet-saved
 # photos/videos, keyed by the filename the client wants. Cleared on exit.
@@ -245,7 +251,8 @@ class Handler(BaseHTTPRequestHandler):
                 "-t", str(VIDEO_MAX_SECONDS),
                 "-vf", f"scale=w='min({VIDEO_MAX_WIDTH},iw)':h=-2,fps=24",
                 "-an",
-                "-c:v", "libx264", "-crf", "28", "-preset", "medium",
+                "-c:v", "libx264", "-crf", "22", "-preset", "medium",
+                "-maxrate", VIDEO_MAXRATE, "-bufsize", VIDEO_BUFSIZE,
                 "-pix_fmt", "yuv420p",
                 "-movflags", "+faststart",
                 str(dest),

@@ -26,10 +26,13 @@
 {% comment %} Resolve creator separately from the group-preferred display credit above {% endcomment %}
 {% if b.makers and b.makers.size > 0 %}
   {% assign creator = b.makers | join: ", " %}
+  {% assign makers_pipe = b.makers | join: "|" %}
 {% elsif b.maker and b.maker != '' %}
   {% assign creator = b.maker %}
+  {% assign makers_pipe = b.maker %}
 {% else %}
   {% assign creator = '' %}
+  {% assign makers_pipe = '' %}
 {% endif %}
 
 {% assign power_sources_str = b.power.sources | join: ' ' %}
@@ -51,6 +54,7 @@
    data-status="{{ b.status }}"
    data-creator="{{ creator | escape }}"
    data-group="{{ b.group | escape }}"
+   data-makers="{{ makers_pipe | escape }}"
    data-power-sources="{{ power_sources_str }}"
    data-connectivity="{{ connectivity_str }}"
    data-features="{{ features_str }}">

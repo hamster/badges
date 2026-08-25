@@ -13,7 +13,6 @@ title: Home
 {% assign other_count = all_badges | where: "type", "other"      | size %}
 
 <div class="page-header">
-  <h1 class="text-accent font-mono">{{ site.title }}</h1>
   <p class="lead">My personal museum of electronic conference badges — from DEF CON, SAINTCON, and beyond — that I actually own, cataloged with photos, specs, and source links. Notice something missing or wrong? <a href="https://github.com/{{ site.repository }}">Please submit a PR.</a></p>
 </div>
 
@@ -63,13 +62,16 @@ title: Home
     <option value="year-asc">Year ↑</option>
     <option value="title-asc">Title A–Z</option>
     <option value="title-desc">Title Z–A</option>
+    <option value="group-asc">Group A–Z</option>
+    <option value="group-desc">Group Z–A</option>
+    <option value="maker-asc">Maker A–Z</option>
+    <option value="maker-desc">Maker Z–A</option>
   </select>
 
   <div class="filter-advanced">
     <button type="button" id="filter-advanced-toggle" class="filter-advanced-toggle">
       Advanced filters <span id="advanced-count-badge" class="advanced-count-badge" hidden>0</span>
     </button>
-    <div id="filter-advanced-panel" class="filter-advanced-panel" hidden></div>
   </div>
 
   <div class="view-toggle" role="group" aria-label="View">
@@ -84,6 +86,10 @@ title: Home
 
   <span class="filter-results" id="filter-results"></span>
   <button id="filter-clear" class="filter-clear" hidden>✕ clear</button>
+</div>
+
+<div id="filter-advanced-panel" class="filter-advanced-panel" hidden>
+  <div id="filter-advanced-panel-inner" class="filter-advanced-panel-inner"></div>
 </div>
 
 <div class="badge-grid" id="badge-grid">
@@ -112,6 +118,7 @@ title: Home
 
   var advToggle      = document.getElementById('filter-advanced-toggle');
   var advPanel       = document.getElementById('filter-advanced-panel');
+  var advPanelInner  = document.getElementById('filter-advanced-panel-inner');
   var advCountBadge  = document.getElementById('advanced-count-badge');
 
   var viewGridBtn   = document.getElementById('view-grid');
@@ -143,6 +150,8 @@ title: Home
   // ===== Advanced parametric filter (Digikey-style multi-select facets) =====
 
   var FACETS = [
+    { key: 'group',        label: 'Group',        multi: false },
+    { key: 'makers',       label: 'Maker',        multi: true, separator: '|' },
     { key: 'edition',      label: 'Edition',      multi: false },
     { key: 'mcu',          label: 'MCU',          multi: false },
     { key: 'display',      label: 'Display',      multi: false },
@@ -161,27 +170,48 @@ title: Home
   function cardFacetValues(card, facet) {
     var raw = card.dataset[facet.key] || '';
     if (!raw) return [];
-    return facet.multi ? raw.split(/\s+/).filter(Boolean) : [raw];
+    if (!facet.multi) return [raw];
+    return raw.split(facet.separator || /\s+/).filter(Boolean);
   }
 
-  // Build each facet section from the values actually present in the collection
+  // Build each facet column from the values actually present in the collection —
+  // laid out side by side like Digikey's parametric search, each column its own
+  // scrollable list, rather than a single narrow dropdown.
   FACETS.forEach(function (facet) {
     var all = [];
     cards.forEach(function (card) { all = all.concat(cardFacetValues(card, facet)); });
     var values = uniqueSorted(all);
     if (!values.length) return; // nothing to filter on for this facet yet
 
-    var details = document.createElement('details');
-    details.className = 'facet-group';
-    var summary = document.createElement('summary');
-    summary.textContent = facet.label;
-    details.appendChild(summary);
+    var column = document.createElement('div');
+    column.className = 'facet-column';
 
+    var header = document.createElement('div');
+    header.className = 'facet-column-header';
+    header.textContent = facet.label;
+    column.appendChild(header);
+
+    // Long lists get a search-within box, same as Digikey's per-facet filter.
     var list = document.createElement('div');
     list.className = 'facet-options';
+    if (values.length > 8) {
+      var searchWithin = document.createElement('input');
+      searchWithin.type = 'search';
+      searchWithin.className = 'facet-column-search';
+      searchWithin.placeholder = 'Search Filter';
+      searchWithin.addEventListener('input', function () {
+        var q = searchWithin.value.trim().toLowerCase();
+        list.querySelectorAll('.facet-option').forEach(function (opt) {
+          opt.hidden = q && opt.dataset.value.toLowerCase().indexOf(q) === -1;
+        });
+      });
+      column.appendChild(searchWithin);
+    }
+
     values.forEach(function (value) {
       var label = document.createElement('label');
       label.className = 'facet-option';
+      label.dataset.value = value;
 
       var checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
@@ -206,20 +236,13 @@ title: Home
       label.appendChild(count);
       list.appendChild(label);
     });
-    details.appendChild(list);
-    advPanel.appendChild(details);
+    column.appendChild(list);
+    advPanelInner.appendChild(column);
   });
 
   advToggle.addEventListener('click', function () {
     advPanel.hidden = !advPanel.hidden;
     advToggle.classList.toggle('active', !advPanel.hidden);
-  });
-
-  document.addEventListener('click', function (e) {
-    if (!advPanel.hidden && !advPanel.contains(e.target) && e.target !== advToggle && !advToggle.contains(e.target)) {
-      advPanel.hidden = true;
-      advToggle.classList.remove('active');
-    }
   });
 
   // Does a card pass every active filter except (optionally) one facet's own selection?
@@ -268,15 +291,21 @@ title: Home
     typeChips.forEach(function(c, i) { c.classList.toggle('active', i === 0); });
     FACETS.forEach(function (f) { activeFacets[f.key].clear(); });
     advPanel.querySelectorAll('input[type=checkbox]').forEach(function (cb) { cb.checked = false; });
+    advPanel.querySelectorAll('.facet-column-search').forEach(function (input) { input.value = ''; });
+    advPanel.querySelectorAll('.facet-option').forEach(function (opt) { opt.hidden = false; });
     applyFilters();
   });
 
   function compareBySort(a, b, sort) {
     switch (sort) {
-      case 'year-asc':   return (+(a.dataset.year) || 0) - (+(b.dataset.year) || 0);
-      case 'title-asc':  return (a.dataset.title || '').localeCompare(b.dataset.title || '');
-      case 'title-desc': return (b.dataset.title || '').localeCompare(a.dataset.title || '');
-      default:           return (+(b.dataset.year) || 0) - (+(a.dataset.year) || 0);
+      case 'year-asc':    return (+(a.dataset.year) || 0) - (+(b.dataset.year) || 0);
+      case 'title-asc':   return (a.dataset.title || '').localeCompare(b.dataset.title || '');
+      case 'title-desc':  return (b.dataset.title || '').localeCompare(a.dataset.title || '');
+      case 'group-asc':   return (a.dataset.group || '').localeCompare(b.dataset.group || '');
+      case 'group-desc':  return (b.dataset.group || '').localeCompare(a.dataset.group || '');
+      case 'maker-asc':   return (a.dataset.creator || '').localeCompare(b.dataset.creator || '');
+      case 'maker-desc':  return (b.dataset.creator || '').localeCompare(a.dataset.creator || '');
+      default:            return (+(b.dataset.year) || 0) - (+(a.dataset.year) || 0);
     }
   }
 
@@ -350,7 +379,12 @@ title: Home
     { key: 'status',  label: 'Status',     base: false },
     { key: 'rarity',  label: 'Rarity',     base: false }
   ];
-  var SORT_COLUMN_MAP = { title: ['title-asc', 'title-desc'], year: ['year-desc', 'year-asc'] };
+  var SORT_COLUMN_MAP = {
+    title:   ['title-asc', 'title-desc'],
+    year:    ['year-desc', 'year-asc'],
+    group:   ['group-asc', 'group-desc'],
+    creator: ['maker-asc', 'maker-desc']
+  };
 
   var savedColumns = null;
   try { savedColumns = JSON.parse(localStorage.getItem('badgeMuseum.columns') || 'null'); } catch (e) {}
