@@ -98,7 +98,10 @@
   {% assign one = "has-vendor" | split: "," %}
   {% assign flags_list = flags_list | concat: one %}
 {% endif %}
-{% if b.content and b.content != blank %}
+{% comment %} strip_html + strip guards against a stray empty tag (or the
+  layout's own "No notes yet." fallback text) reading as "has notes" {% endcomment %}
+{% assign notes_check = b.content | strip_html | strip %}
+{% if notes_check != '' and notes_check != 'No notes yet.' %}
   {% assign one = "has-notes" | split: "," %}
   {% assign flags_list = flags_list | concat: one %}
 {% endif %}

@@ -24,7 +24,7 @@ sao_ports:
 interface: USB-C
 programming: USB-DFU
 connectivity: []
-features: ["accelerometer", "joystick", "microphone", "neopixels"]
+features: ["accelerometer", "joystick", "microphone", "neopixel"]
 rarity: "small-run"
 acquisition:
   date: "2025-08-01"
@@ -52,3 +52,5 @@ videos:
     caption: ""
 status: wip
 ---
+
+

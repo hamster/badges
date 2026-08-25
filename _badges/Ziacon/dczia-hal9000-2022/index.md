@@ -3,7 +3,7 @@ layout: badge
 title: "Hal9000"
 slug: dczia-hal9000-2022
 year: 2022
-con: other
+con: Ziacon
 event: "ZiaCon 3"
 type: badge
 edition: "regular"
@@ -35,4 +35,5 @@ images:
 videos: []
 status: stub
 ---
+
 

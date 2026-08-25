@@ -24,7 +24,7 @@ features: ["kit"]
 rarity: "small-run"
 acquisition:
   date: "2022-08-01"
-  source: "DEF CON 29"
+  source: "self"
 docs_url: "https://github.com/dczia/thirtyinone"
 source_repo: "https://github.com/dczia/thirtyinone"
 sold_at: 
@@ -37,3 +37,5 @@ images:
 videos: []
 status: stub
 ---
+
+

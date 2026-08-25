@@ -24,7 +24,7 @@ sao_ports:
 interface: USB-C
 programming: USB-DFU
 connectivity: []
-features: ["accelerometer", "buttons", "neopixels"]
+features: ["accelerometer", "buttons", "neopixel"]
 rarity: "small-run"
 acquisition:
   date: "2026-08-01"
@@ -54,3 +54,5 @@ videos:
     caption: ""
 status: stub
 ---
+
+
