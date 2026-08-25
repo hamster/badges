@@ -131,7 +131,7 @@ sold_at: []
 # Primary / current purchase URL (short-form alternative to sold_at)
 purchase_url: ""
 
-# Photos — place image files in assets/badges/{con}/{slug}/
+# Photos — place image files alongside this index.md in _badges/{con}/{slug}/
 # First image is used as the card thumbnail.
 images: []
 # images:
@@ -141,6 +141,16 @@ images: []
 #     caption: "Back of badge"
 #   - filename: detail-screen.jpg
 #     caption: "OLED display showing boot screen"
+
+# External links — YouTube entries render as embedded video; type "web" renders as a link
+links: []
+# links:
+#   - label: "Unboxing video"
+#     url: "https://www.youtube.com/watch?v=..."
+#     type: youtube
+#   - label: "Project page"
+#     url: "https://example.com"
+#     type: web
 
 # stub | wip | complete
 status: stub

@@ -46,10 +46,26 @@ code { font-family: var(--font-mono); background: var(--surface-2); padding: 2px
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 24px;
-  height: 56px;
+  min-height: 56px;
   display: flex;
   align-items: center;
   gap: 32px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 600px) {
+  .nav-inner {
+    padding: 10px 16px;
+    gap: 4px;
+    row-gap: 6px;
+  }
+
+  .nav-brand { flex-basis: 100%; }
+
+  .nav-links a {
+    padding: 4px 10px;
+    font-size: 13px;
+  }
 }
 
 .nav-brand {
@@ -187,11 +203,13 @@ main { padding: 40px 0 80px; }
 
 .badge-card[hidden] { display: none; }
 
-.badge-card:hover {
-  border-color: var(--accent-dim);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow);
-  text-decoration: none;
+@media (hover: hover) {
+  .badge-card:hover {
+    border-color: var(--accent-dim);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+    text-decoration: none;
+  }
 }
 
 .badge-card-image {
@@ -208,7 +226,9 @@ main { padding: 40px 0 80px; }
   transition: transform 0.2s;
 }
 
-.badge-card:hover .badge-card-image img { transform: scale(1.03); }
+@media (hover: hover) {
+  .badge-card:hover .badge-card-image img { transform: scale(1.03); }
+}
 
 .badge-card-image-placeholder {
   width: 100%;
@@ -338,6 +358,16 @@ main { padding: 40px 0 80px; }
   font-size: 12px;
   color: var(--text-muted);
   margin-top: -6px;
+}
+
+/* YouTube embeds */
+.badge-youtube { margin-top: 12px; }
+.badge-youtube iframe {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: none;
+  border-radius: var(--radius-lg);
+  display: block;
 }
 
 /* Badge links */

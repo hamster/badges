@@ -9,7 +9,7 @@ A personal catalog of electronic conference badges — DEF CON, SAINTCON, and be
 - **Jekyll 4** static site generator
 - **GitHub Pages** hosting via GitHub Actions
 - **No build-time dependencies** beyond the Gemfile — pure Jekyll collections, Liquid templates, and vanilla JS
-- The local tools in `scripts/` are Python stdlib only; **ffmpeg** is an optional extra needed only for video upload in the GUI — see [scripts/badge_gui/README.md](scripts/badge_gui/README.md#video--ffmpeg)
+- The local tools in `scripts/` are Python stdlib only; **ffmpeg** is an optional extra needed only for video upload in the GUI — see [scripts/badge_gui/README.md](scripts/badge_gui/README.md#video--ffmpeg). The scripts may be removed once the web editor at `/edit/` is confirmed as the primary workflow.
 
 ---
 
@@ -27,17 +27,12 @@ The site will be available at `http://localhost:4000/badges/`.
 ## Project structure
 
 ```
-_badges/            Badge content, organized by con then slug
+_badges/            Badge content and images, organized by con then slug
   defcon/
     dczia-zippy-2025/
       index.md      Badge frontmatter + notes (Markdown)
-
-assets/
-  badges/           Badge photos, organized to match _badges/
-    defcon/
-      dczia-zippy-2025/
-        front.jpg
-        back.jpg
+      front.jpg     Photos and videos live here, alongside index.md
+      back.jpg
 
 _layouts/
   default.html      Site chrome / nav
@@ -50,8 +45,10 @@ _includes/
 _template/
   index.md          Blank badge template — copy this when adding manually
 
-scripts/              See scripts/README.md for which tool is which
-  badge_gui/            Local web app to add/edit/duplicate a badge (recommended)
+edit/               Web editor — add/edit badges via File System Access API (Chrome/Edge)
+
+scripts/              Python tools — may be removed once web editor is confirmed
+  badge_gui/            Local web app to add/edit/duplicate a badge
   badge_cli/            Terminal equivalent — same fields, no photos/video/preview
   badge_lib.py          Shared option lists + frontmatter read/write logic
 
@@ -67,15 +64,19 @@ TODO.md             Pending work — badges to fill in, site tasks
 
 ## Adding a badge
 
-### Option A — the GUI (recommended)
+### Option A — the web editor (recommended)
+
+Open `http://localhost:4000/badges/edit/` while the dev server is running, then use the browser's **Open Folder** button to point it at your local checkout. The editor writes badge files directly to disk — no server-side code involved. Chrome or Edge only (Firefox lacks the File System Access API).
+
+### Option B — the local GUI
 
 ```bash
 python scripts/badge_gui/badge_gui.py
 ```
 
-A local form with known-option pickers (each with a "+ Add new…" escape hatch), drag-and-drop photo/video upload with a "☆ Set as highlight" button, a "📂 Load existing badge…" picker — browse by group/maker first, then badge, or just search — to edit or duplicate what's already here (duplicating tags the title with "COPY" so it's never confused with the original), and a live side-by-side preview of the actual badge page. See [scripts/badge_gui/README.md](scripts/badge_gui/README.md) for the full feature list and for getting **ffmpeg** working (needed only for video upload).
+A local web app with known-option pickers (each with a "+ Add new…" escape hatch), drag-and-drop photo/video upload with a "☆ Set as highlight" button, a "📂 Load existing badge…" picker — browse by group/maker first, then badge, or just search — to edit or duplicate what's already here, and a live side-by-side preview of the actual badge page. See [scripts/badge_gui/README.md](scripts/badge_gui/README.md) for the full feature list and for getting **ffmpeg** working (needed only for video upload).
 
-### Option B — the terminal script
+### Option C — the terminal script
 
 ```bash
 python scripts/badge_cli/badge_cli.py
@@ -83,13 +84,12 @@ python scripts/badge_cli/badge_cli.py
 
 Same fields and output, prompt-by-prompt in the terminal — including edit and duplicate. No browser, no photos/video/preview. See [scripts/badge_cli/README.md](scripts/badge_cli/README.md).
 
-Both tools share their option lists and file-writing logic (`scripts/badge_lib.py`), so they always produce identical output — see [scripts/README.md](scripts/README.md) for how they relate.
+Both Python tools share their option lists and file-writing logic (`scripts/badge_lib.py`), so they always produce identical output — see [scripts/README.md](scripts/README.md) for how they relate.
 
-### Option C — copy the template manually
+### Option D — copy the template manually
 
 ```bash
 cp -r _template _badges/{con}/{slug}
-mkdir -p assets/badges/{con}/{slug}
 ```
 
 Then edit `_badges/{con}/{slug}/index.md` with the badge details.
@@ -127,7 +127,7 @@ Fields are all optional except `title`, `slug`, `year`, `con`, and `type`. The l
 | Field | Type | Notes |
 |---|---|---|
 | `title` | string | Display name of the badge |
-| `slug` | string | Directory name — must match `_badges/{con}/{slug}/` and `assets/badges/{con}/{slug}/`. Default: `{group-or-creator}-{title}-{year}` (con isn't repeated since it's already the parent directory) |
+| `slug` | string | Directory name — must match `_badges/{con}/{slug}/`. Default: `{group-or-creator}-{title}-{year}` (con isn't repeated since it's already the parent directory) |
 | `year` | integer | Year the badge was made / first appeared |
 | `con` | string | `defcon` \| `saintcon` \| `dc503` \| `queercon` \| `layerone` \| `toorcon` \| `other` |
 | `event` | string | Human-readable event name, e.g. `"DEF CON 32"` |
@@ -178,7 +178,7 @@ Option lists (cons, types, editions, etc.) live at the top of [scripts/badge_lib
 
 ### Where to put them
 
-Images go in `assets/badges/{con}/{slug}/` — **not** inside `_badges/`. Jekyll doesn't reliably serve static files from inside a collection directory.
+Images go in `_badges/{con}/{slug}/` — alongside `index.md`. Jekyll 4 copies non-document files from collection directories as static files and serves them at `/_badges/...`.
 
 ### Naming convention
 
@@ -201,7 +201,7 @@ Use kebab-case. Order in the `images:` list determines gallery order; first entr
 
 ### Video
 
-A short clip (e.g. slowly rotating the badge) can go in `videos:` alongside `images:`, same `{filename, caption}` shape, files living in the same `assets/badges/{con}/{slug}/` directory. It renders as a muted, looping, autoplaying `<video>` — deliberately not a GIF, which would be far larger for the same quality over more than a couple of seconds. The GUI's dropzone handles the conversion (and highlighting one clip as the hero) automatically; see [scripts/badge_gui/README.md](scripts/badge_gui/README.md#video--ffmpeg) for the ffmpeg command to do it by hand, and for getting ffmpeg itself working on Windows.
+A short clip (e.g. slowly rotating the badge) can go in `videos:` alongside `images:`, same `{filename, caption}` shape, files living in the same `_badges/{con}/{slug}/` directory. It renders as a muted, looping, autoplaying `<video>` — deliberately not a GIF, which would be far larger for the same quality over more than a couple of seconds. The GUI's dropzone handles the conversion (and highlighting one clip as the hero) automatically; see [scripts/badge_gui/README.md](scripts/badge_gui/README.md#video--ffmpeg) for the ffmpeg command to do it by hand, and for getting ffmpeg itself working on Windows.
 
 ---
 

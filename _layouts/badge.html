@@ -2,7 +2,7 @@
 layout: default
 ---
 
-{% assign img_base = '/assets/badges/' | append: page.con | append: '/' | append: page.slug | append: '/' %}
+{% assign img_base = '/_badges/' | append: page.con | append: '/' | append: page.slug | append: '/' %}
 
 {% comment %} Credit tag: group name, or the first maker if there's no group {% endcomment %}
 {% if page.group and page.group != '' %}
@@ -101,6 +101,24 @@ layout: default
       </div>
     {% endif %}
 
+    {% if page.links and page.links.size > 0 %}
+      {% for link in page.links %}
+        {% if link.type == "youtube" %}
+          {% if link.url contains "youtu.be/" %}
+            {% assign yt_id = link.url | split: "youtu.be/" | last | split: "?" | first %}
+          {% else %}
+            {% assign yt_id = link.url | split: "v=" | last | split: "&" | first %}
+          {% endif %}
+          <div class="badge-youtube">
+            <iframe src="https://www.youtube.com/embed/{{ yt_id }}" allowfullscreen loading="lazy"></iframe>
+            {% if link.label and link.label != '' %}
+              <div class="badge-video-caption">{{ link.label }}</div>
+            {% endif %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+
     <div class="badge-links">
       {% if page.docs_url and page.docs_url != '' %}
         <a href="{{ page.docs_url }}" class="source-link" target="_blank" rel="noopener">
@@ -118,6 +136,15 @@ layout: default
           {% if store.url and store.url != '' %}
             <a href="{{ store.url }}" class="source-link" target="_blank" rel="noopener">
               ⊕ {{ store.vendor | default: 'Buy' }}
+            </a>
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      {% if page.links and page.links.size > 0 %}
+        {% for link in page.links %}
+          {% if link.type != "youtube" and link.url and link.url != '' %}
+            <a href="{{ link.url }}" class="source-link" target="_blank" rel="noopener">
+              🔗 {{ link.label | default: link.url }}
             </a>
           {% endif %}
         {% endfor %}

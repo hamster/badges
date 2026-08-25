@@ -652,6 +652,63 @@
       .filter(function (e) { return e.vendor || e.url; });
   }
 
+  function addLinkRow(label, url, type) {
+    var list = document.getElementById('links-list');
+    var row = document.createElement('div');
+    row.className = 'links-row';
+
+    var labelInput = document.createElement('input');
+    labelInput.type = 'text';
+    labelInput.placeholder = 'Label';
+    labelInput.value = label || '';
+
+    var urlInput = document.createElement('input');
+    urlInput.type = 'url';
+    urlInput.placeholder = 'https://…';
+    urlInput.value = url || '';
+
+    var typeSelect = document.createElement('select');
+    ['web', 'youtube'].forEach(function (t) {
+      var opt = document.createElement('option');
+      opt.value = t;
+      opt.textContent = t;
+      if (t === (type || 'web')) opt.selected = true;
+      typeSelect.appendChild(opt);
+    });
+
+    var removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'links-remove';
+    removeBtn.title = 'Remove';
+    removeBtn.textContent = '✕';
+    removeBtn.addEventListener('click', function () {
+      row.remove();
+      markDirty();
+      scheduleFieldsChanged();
+    });
+
+    row.appendChild(labelInput);
+    row.appendChild(urlInput);
+    row.appendChild(typeSelect);
+    row.appendChild(removeBtn);
+    list.appendChild(row);
+  }
+
+  function collectLinks() {
+    return Array.from(document.querySelectorAll('#links-list .links-row'))
+      .map(function (row) {
+        var inputs = row.querySelectorAll('input');
+        var sel = row.querySelector('select');
+        return { label: inputs[0].value.trim(), url: inputs[1].value.trim(), type: sel.value };
+      })
+      .filter(function (e) { return e.url; });
+  }
+
+  function youtubeEmbedId(url) {
+    var m = url.match(/(?:youtube\.com\/watch\?.*v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    return m ? m[1] : null;
+  }
+
   // ---------------------------------------------------------------------
   // Collect fields (shared by preview + save)
   // ---------------------------------------------------------------------
@@ -700,6 +757,7 @@
       source_repo: val('f-source-repo'),
       sold_at: collectSoldAt(),
       purchase_url: val('f-purchase-url'),
+      links: collectLinks(),
       slug: val('f-slug'),
       status: val('f-status'),
       notes: val('f-notes'),
@@ -854,6 +912,18 @@
     (fields.sold_at || []).forEach(function (e) {
       if (e.url) links.push('<a class="source-link" href="' + esc(e.url) + '" target="_blank" rel="noopener">⊕ ' + esc(e.vendor || 'Buy') + '</a>');
     });
+    var youtubeEmbeds = [];
+    (fields.links || []).forEach(function (lk) {
+      if (!lk.url) return;
+      if (lk.type === 'youtube') {
+        var ytId = youtubeEmbedId(lk.url);
+        if (ytId) {
+          youtubeEmbeds.push('<div class="badge-youtube"><iframe src="https://www.youtube.com/embed/' + esc(ytId) + '" allowfullscreen></iframe>' + (lk.label ? '<div class="badge-video-caption">' + esc(lk.label) + '</div>' : '') + '</div>');
+        }
+      } else {
+        links.push('<a class="source-link" href="' + esc(lk.url) + '" target="_blank" rel="noopener">🔗 ' + esc(lk.label || lk.url) + '</a>');
+      }
+    });
 
     var specs = [];
     if (fields.makers && fields.makers.length) {
@@ -902,6 +972,7 @@
           heroVideoHtml +
           '<div class="badge-gallery">' + galleryHtml + '</div>' +
           videosHtml +
+          (youtubeEmbeds.length ? youtubeEmbeds.join('') : '') +
           (links.length ? '<div class="badge-links">' + links.join('') + '</div>' : '') +
         '</div>' +
         '<div class="badge-specs"><div class="specs-header">Specifications</div>' + specs.join('') + '</div>' +
@@ -1162,6 +1233,7 @@
       CHECKBOX_GROUPS[key].querySelectorAll('input[type=checkbox]').forEach(function (cb) { cb.checked = false; });
     });
     document.getElementById('sold-at-list').innerHTML = '';
+    document.getElementById('links-list').innerHTML = '';
     images.forEach(function (img) { if (img.objectUrl && img.objectUrl.indexOf('blob:') === 0) URL.revokeObjectURL(img.objectUrl); });
     images = [];
     renderImageList();
@@ -1227,6 +1299,7 @@
     setVal('f-source-repo', data.source_repo);
     (data.sold_at || []).forEach(function (e) { addSoldAtRow(e.vendor, e.url); });
     setVal('f-purchase-url', data.purchase_url);
+    (data.links || []).forEach(function (lk) { addLinkRow(lk.label, lk.url, lk.type); });
     setVal('f-notes', data.notes);
 
     setSelectValue('f-status', mode === 'edit' ? data.status : 'stub');
@@ -1238,7 +1311,7 @@
           filename: img.filename,
           originalFilename: img.filename,
           caption: img.caption || '',
-          objectUrl: '/assets/badges/' + data.con + '/' + data.slug + '/' + img.filename,
+          objectUrl: '/_badges/' + data.con + '/' + data.slug + '/' + img.filename,
           draftFilename: null,
           highlight: !!img.highlight
         };
@@ -1248,7 +1321,7 @@
           filename: vid.filename,
           originalFilename: vid.filename,
           caption: vid.caption || '',
-          objectUrl: '/assets/badges/' + data.con + '/' + data.slug + '/' + vid.filename,
+          objectUrl: '/_badges/' + data.con + '/' + data.slug + '/' + vid.filename,
           draftFilename: null,
           converting: false,
           error: null,
@@ -1334,6 +1407,7 @@
     });
 
     document.getElementById('add-sold-at').addEventListener('click', function () { markDirty(); addSoldAtRow(); });
+    document.getElementById('add-link').addEventListener('click', function () { markDirty(); addLinkRow(); });
 
     window.addEventListener('beforeunload', function (e) {
       if (!dirty) return;

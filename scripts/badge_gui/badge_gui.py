@@ -117,8 +117,8 @@ class Handler(BaseHTTPRequestHandler):
             self._handle_get_badge(parse_qs(urlparse(self.path).query))
         elif path.startswith("/api/"):
             self._send_json({"error": "not found"}, status=HTTPStatus.NOT_FOUND)
-        elif path.startswith("/assets/"):
-            # Reuse the site's own dark-theme CSS instead of duplicating it.
+        elif path.startswith("/assets/") or path.startswith("/_badges/"):
+            # /assets/ for site CSS; /_badges/ for badge images now co-located with index.md
             self._serve_static(lib.SITE_ROOT, path.lstrip("/"))
         else:
             self._serve_static(STATIC_DIR, path.lstrip("/"))

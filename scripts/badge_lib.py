@@ -11,7 +11,7 @@ from pathlib import Path
 
 SITE_ROOT = Path(__file__).parent.parent
 BADGES_DIR = SITE_ROOT / "_badges"
-ASSETS_DIR = SITE_ROOT / "assets" / "badges"
+ASSETS_DIR = BADGES_DIR  # images now live alongside index.md in _badges/
 
 # --- Option lists: add new values here as needed ---
 
@@ -116,24 +116,18 @@ def default_slug(title, year, group=None, makers=None):
 
 
 def resolve_badge_paths(con, slug, original_con=None, original_slug=None):
-    """Figure out (and make ready) the on-disk directories for a badge
-    that's being created or saved-in-place. If `original_con`/`original_slug`
-    are given, this is an edit: the original directories are moved into
-    place if the location changed (a con/slug rename), or left as-is
-    otherwise. Used by both badge_cli and badge_gui so "create vs. rename
-    vs. overwrite-in-place" behaves identically from either tool.
+    """Figure out (and make ready) the on-disk directory for a badge that's
+    being created or saved-in-place. Images now live alongside index.md in
+    _badges/{con}/{slug}/, so badge_dir and assets_dir are the same path.
 
-    Returns (badge_dir, assets_dir, is_edit). Raises ValueError if the
-    original badge is missing, or if the target location is already taken
-    by something else.
+    Returns (badge_dir, badge_dir, is_edit). Raises ValueError if the
+    original badge is missing, or if the target location is already taken.
     """
     badge_dir = BADGES_DIR / con / slug
-    assets_dir = ASSETS_DIR / con / slug
     is_edit = bool(original_con and original_slug)
 
     if is_edit:
         orig_badge_dir = BADGES_DIR / original_con / original_slug
-        orig_assets_dir = ASSETS_DIR / original_con / original_slug
         if not orig_badge_dir.is_dir():
             raise ValueError(f"Original badge not found: {orig_badge_dir}")
 
@@ -142,18 +136,12 @@ def resolve_badge_paths(con, slug, original_con=None, original_slug=None):
                 raise ValueError(f"Target badge directory already exists: {badge_dir}")
             badge_dir.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(orig_badge_dir), str(badge_dir))
-            assets_dir.parent.mkdir(parents=True, exist_ok=True)
-            if orig_assets_dir.is_dir():
-                shutil.move(str(orig_assets_dir), str(assets_dir))
-            else:
-                assets_dir.mkdir(parents=True)
     else:
         if badge_dir.exists():
             raise ValueError(f"Badge directory already exists: {badge_dir}")
         badge_dir.mkdir(parents=True)
-        assets_dir.mkdir(parents=True)
 
-    return badge_dir, assets_dir, is_edit
+    return badge_dir, badge_dir, is_edit
 
 
 def ensure_gitkeep(assets_dir):
@@ -203,6 +191,19 @@ def yaml_sold_at(entries, indent=2):
     for e in entries:
         lines.append(f"{pad}- vendor: {qs(e['vendor'])}")
         lines.append(f"{pad}  url: {qs(e['url'])}")
+    return "\n" + "\n".join(lines)
+
+
+def yaml_links(entries, indent=2):
+    """Format links list as YAML block sequence of {label, url, type} mappings."""
+    if not entries:
+        return "[]"
+    pad = " " * indent
+    lines = []
+    for e in entries:
+        lines.append(f"{pad}- label: {qs(e.get('label', ''))}")
+        lines.append(f"{pad}  url: {qs(e.get('url', ''))}")
+        lines.append(f"{pad}  type: {e.get('type', 'web')}")
     return "\n" + "\n".join(lines)
 
 
@@ -274,6 +275,7 @@ def build_frontmatter(f):
         )
 
     sold_at_yaml = yaml_sold_at(f.get("sold_at", []))
+    links_yaml = yaml_links(f.get("links", []))
     images_yaml = yaml_media_block(f.get("images", []))
     videos_yaml = yaml_media_block(f.get("videos", []))
     current_ma = f.get("current_ma") or ""
@@ -313,6 +315,7 @@ docs_url: {qs(f.get('docs_url', ''))}
 source_repo: {qs(f.get('source_repo', ''))}
 sold_at: {sold_at_yaml}
 purchase_url: {qs(f.get('purchase_url', ''))}
+links: {links_yaml}
 images: {images_yaml}
 videos: {videos_yaml}
 status: {f.get('status', 'stub')}
@@ -529,6 +532,22 @@ def _as_list(v):
     return [v] if v else []
 
 
+def _normalize_links(items):
+    """Clean up a parsed links list: guarantee label/url/type are present."""
+    if not isinstance(items, list):
+        return []
+    out = []
+    for item in items:
+        if not isinstance(item, dict) or not item.get("url"):
+            continue
+        out.append({
+            "label": item.get("label") or "",
+            "url": item["url"],
+            "type": item.get("type") or "web",
+        })
+    return out
+
+
 def _normalize_media_list(items):
     """Clean up a parsed images/videos list for consumption by the admin
     app: guarantee filename/caption are present, and turn `highlight` into
@@ -567,7 +586,7 @@ def list_badges(badges_dir=None):
 
         images = _normalize_media_list(data.get("images"))
         thumb_source = next((i for i in images if i["highlight"]), None) or (images[0] if images else None)
-        thumbnail_url = f"/assets/badges/{con}/{slug}/{thumb_source['filename']}" if thumb_source else None
+        thumbnail_url = f"/_badges/{con}/{slug}/{thumb_source['filename']}" if thumb_source else None
 
         out.append({
             "con": con,
@@ -607,6 +626,7 @@ def get_badge_fields(con, slug, badges_dir=None):
     images = _normalize_media_list(data.get("images"))
     videos = _normalize_media_list(data.get("videos"))
     sold_at = data.get("sold_at")
+    links = _normalize_links(data.get("links"))
 
     return {
         "title": data.get("title", ""),
@@ -645,6 +665,7 @@ def get_badge_fields(con, slug, badges_dir=None):
         "source_repo": data.get("source_repo", ""),
         "sold_at": sold_at if isinstance(sold_at, list) else [],
         "purchase_url": data.get("purchase_url", ""),
+        "links": links,
         "status": data.get("status", "stub"),
         "notes": notes,
         "images": images,

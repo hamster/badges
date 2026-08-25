@@ -237,6 +237,25 @@ def collect_fields(loaded, is_edit):
     f["docs_url"] = ask("Documentation URL", default=L("docs_url", ""))
     f["source_repo"] = ask("Source / repo URL", default=L("source_repo", ""))
 
+    # --- External links ---
+    links = [dict(e) for e in (L("links", []) or [])]
+    if links:
+        print("\nExisting external links:")
+        for lk in links:
+            print(f"  - [{lk.get('type', 'web')}] {lk.get('label', '')}: {lk.get('url', '')}")
+        if not ask_yn("Keep these as-is?", default=True):
+            links = []
+    if ask_yn("Add an external link?", default=False):
+        while True:
+            label = ask("  Label", default="")
+            url = ask("  URL", default="")
+            link_type = choose("  Type", ["web", "youtube"], default="web")
+            if url:
+                links.append({"label": label, "url": url, "type": link_type})
+            if not ask_yn("  Add another link?", default=False):
+                break
+    f["links"] = links
+
     # --- Sold at ---
     sold_at = [dict(e) for e in (L("sold_at", []) or [])]
     if sold_at:
@@ -274,6 +293,8 @@ def collect_fields(loaded, is_edit):
     # physical item, so its photos shouldn't carry over either).
     f["images"] = L("images", []) if is_edit else []
     f["videos"] = L("videos", []) if is_edit else []
+    if "links" not in f:
+        f["links"] = L("links", []) if is_edit else []
 
     # --- Slug ---
     slug_default = L("slug") if is_edit else lib.default_slug(title, f["year"], f["group"], f["makers"])
@@ -316,7 +337,7 @@ def main():
     original_slug = picked["slug"] if is_edit else None
 
     try:
-        badge_dir, assets_dir, _ = lib.resolve_badge_paths(f["con"], f["slug"], original_con, original_slug)
+        badge_dir, _, _ = lib.resolve_badge_paths(f["con"], f["slug"], original_con, original_slug)
     except ValueError as e:
         print(f"\nERROR: {e}")
         sys.exit(1)
@@ -324,25 +345,23 @@ def main():
     content = lib.build_frontmatter(f)
     index_path = badge_dir / "index.md"
     index_path.write_text(content, encoding="utf-8")
-    lib.ensure_gitkeep(assets_dir)
+    lib.ensure_gitkeep(badge_dir)
 
     if is_edit:
         print(f"""
 Done! Badge updated.
 
-  Data file : {index_path}
-  Images dir: {assets_dir}
+  Badge dir : {badge_dir}
 """)
     else:
         verb = "duplicated" if is_duplicate else "created"
         print(f"""
 Done! Badge stub {verb}.
 
-  Data file : {index_path}
-  Images dir: {assets_dir}
+  Badge dir : {badge_dir}
 
 Next steps:
-  1. Copy photos into {assets_dir}/ (or use the GUI's drag-and-drop instead —
+  1. Copy photos into {badge_dir}/ alongside index.md (or use the GUI's drag-and-drop —
      see scripts/badge_gui/README.md)
   2. Edit {index_path} — fill in specs and add an images list:
 
