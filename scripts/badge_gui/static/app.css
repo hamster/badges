@@ -163,6 +163,27 @@ body { min-height: 100vh; }
 .browse-actions { display: flex; gap: 6px; flex-shrink: 0; }
 .browse-actions button { font-size: 12px; padding: 6px 10px; }
 
+.browse-row-group { cursor: pointer; }
+.browse-chevron { color: var(--text-muted); font-size: 18px; flex-shrink: 0; }
+
+.browse-back {
+  display: block;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 13px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  padding: 6px 8px;
+}
+.browse-back:hover { text-decoration: underline; }
+
+.browse-group-heading {
+  font-size: 15px;
+  font-weight: 600;
+  padding: 4px 8px 10px;
+}
+
 /* ===== Form ===== */
 .admin-form { display: flex; flex-direction: column; gap: 20px; }
 

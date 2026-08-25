@@ -15,7 +15,7 @@ Opens `http://127.0.0.1:8420/` in your browser and binds only to localhost — n
 - Drag-and-drop video upload — converted into a small looping, muted MP4 (see **Video / ffmpeg** below).
 - A "☆ Set as highlight" button on every photo/video: exactly one across both is ever the highlight, and it's what leads — the card-grid thumbnail if it's a photo, or the hero clip above the gallery if it's a video.
 - A live, side-by-side preview that mirrors the actual badge page layout (toggle to raw YAML, or pop it out into its own tab).
-- **"📂 Load existing badge…"** to edit a badge already in the checkout (including renaming its convention/slug, which moves the directory) or duplicate one as a starting point for a new entry (photos/video are left out, since it's a different physical item).
+- **"📂 Load existing badge…"** to edit a badge already in the checkout (including renaming its convention/slug, which moves the directory) or duplicate one as a starting point for a new entry (photos/video are left out, since it's a different physical item; duplicating also appends "COPY" to the title so it's never mistaken for the original). The picker opens on a list of groups/makers to narrow down by first — click one to see just its badges, or "All badges" for the old flat list — and typing in the search box at any point jumps straight to a flat, filtered result across everything, ignoring whichever group you were browsing.
 - A banner if it can't reach its own backend — usually means `badge_gui.py` isn't running or was stopped; restart it and reload the page.
 
 Saving writes straight into this checkout (`_badges/{con}/{slug}/index.md` and `assets/badges/{con}/{slug}/`) and prints the `git add`/`commit` commands — nothing is committed automatically.
@@ -24,11 +24,12 @@ Saving writes straight into this checkout (`_badges/{con}/{slug}/index.md` and `
 
 Video upload needs **ffmpeg** on your `PATH`. If it's missing, the app tells you so (a banner near the dropzone, and a clear error if you try anyway) — everything else works fine without it.
 
-The conversion itself (roughly): scale down to a max width, cap the length, strip audio, encode as H.264/yuv420p with `+faststart`. Deliberately not a GIF — GIF is far less efficient for anything longer than a couple of seconds, so an equivalent-quality MP4 ends up dramatically smaller. Doing it by hand looks like:
+The conversion itself (roughly): scale down to a max width of 1080px, cap the length at 30s, strip audio, encode as H.264/yuv420p with `+faststart`. `-maxrate`/`-bufsize` bound the worst case (a full 30s clip at sustained peak rate) to comfortably under a ~10MB output, even though `-crf` alone doesn't guarantee a file size. Deliberately not a GIF — GIF is far less efficient for anything longer than a couple of seconds, so an equivalent-quality MP4 ends up dramatically smaller. Doing it by hand looks like:
 
 ```bash
-ffmpeg -i clip.mov -t 30 -vf "scale=w='min(800,iw)':h=-2,fps=24" -an \
-  -c:v libx264 -crf 28 -preset medium -pix_fmt yuv420p -movflags +faststart spin.mp4
+ffmpeg -i clip.mov -t 30 -vf "scale=w='min(1080,iw)':h=-2,fps=24" -an \
+  -c:v libx264 -crf 22 -preset medium -maxrate 2600k -bufsize 5200k \
+  -pix_fmt yuv420p -movflags +faststart spin.mp4
 ```
 
 ### Getting ffmpeg working on Windows

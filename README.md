@@ -73,7 +73,7 @@ TODO.md             Pending work — badges to fill in, site tasks
 python scripts/badge_gui/badge_gui.py
 ```
 
-A local form with known-option pickers (each with a "+ Add new…" escape hatch), drag-and-drop photo/video upload with a "☆ Set as highlight" button, a "📂 Load existing badge…" picker to edit or duplicate what's already here, and a live side-by-side preview of the actual badge page. See [scripts/badge_gui/README.md](scripts/badge_gui/README.md) for the full feature list and for getting **ffmpeg** working (needed only for video upload).
+A local form with known-option pickers (each with a "+ Add new…" escape hatch), drag-and-drop photo/video upload with a "☆ Set as highlight" button, a "📂 Load existing badge…" picker — browse by group/maker first, then badge, or just search — to edit or duplicate what's already here (duplicating tags the title with "COPY" so it's never confused with the original), and a live side-by-side preview of the actual badge page. See [scripts/badge_gui/README.md](scripts/badge_gui/README.md) for the full feature list and for getting **ffmpeg** working (needed only for video upload).
 
 ### Option B — the terminal script
 
@@ -98,7 +98,7 @@ Then edit `_badges/{con}/{slug}/index.md` with the badge details.
 
 ## Editing a badge
 
-Open `_badges/{con}/{slug}/index.md`. All metadata is in the YAML frontmatter at the top; prose notes go below the `---` separator. Markdown is fully supported in the notes body.
+Open `_badges/{con}/{slug}/index.md`. All metadata is in the YAML frontmatter at the top; prose notes go below the `---` separator. Markdown is fully supported in the notes body. Leaving notes blank (in either tool, or by hand) just leaves the body empty — it's shown as a "No notes yet." placeholder at render time, never written into the file itself.
 
 Change `status: stub` → `status: wip` as you fill things in, and `status: complete` when photos and specs are done.
 
@@ -111,8 +111,8 @@ The home page has a client-side filter bar — no page reload needed.
 - **Type chips** — filter by badge type (badge, SAO, minibadge, etc.); only types that exist in the collection are shown
 - **Search** — free-text match against title, maker names, and group
 - **Year / Con dropdowns** — populated automatically from the badges that exist
-- **Advanced filters** — a Digikey-style parametric filter panel: multi-select checkboxes grouped by facet (edition, MCU, display, USB, programming, wireless, features, rarity, status), with live result counts per option. Checking two values in one facet is OR; combining facets (and the simple search/year/con/type controls) is AND.
-- **Sort** — year descending (default), year ascending, title A–Z, title Z–A
+- **Advanced filters** — a Digikey-style parametric search: toggling it opens a strip of columns (Con, Group, Maker, Acquired from, Edition, MCU, Display, USB, Programming, Rarity, Status, Power, Wireless, Other features, SAO / Minibadge, Flags) between the filter bar and the grid. The box itself stays a fixed size — with this many columns it scrolls sideways rather than growing — and each column independently scrolls vertically, with live result counts per option and its own "Search Filter" box once a column has enough values to need one. "Flags" is a fixed yes/no set (has docs, has repo/source, has vendor/purchase link, has notes) rather than values pulled from the data. Checking two values in one column is OR; combining columns (and the simple search/year/con/type controls) is AND.
+- **Sort** — year descending (default), year ascending, title A–Z, title Z–A, group A–Z, group Z–A, maker A–Z, maker Z–A. Clicking the Group or Creator column header in table view toggles the matching sort too.
 - **Grid / Table view** — switch to a row-and-column table for the same filtered results. Base columns are Name, Creator, Group, Year, Type, and Conference; a "Columns" menu lets you add MCU, Display, Edition, Status, or Rarity. Both the view choice and extra columns persist in the browser.
 - **"✕ clear"** — appears only when filters are active; resets everything
 
@@ -165,6 +165,8 @@ Fields are all optional except `title`, `slug`, `year`, `con`, and `type`. The l
 | `images` | list | `[{filename: "front.jpg", caption: "...", highlight: true}]` — card thumbnail is the `highlight: true` image if one exists, else the first |
 | `videos` | list | `[{filename: "spin.mp4", caption: "...", highlight: true}]` — short muted, looping clips (e.g. the badge rotating); a `highlight: true` video leads as a hero clip above the photo gallery, others render below it |
 | `status` | string | `stub` \| `wip` \| `complete` |
+
+`group` (or the first `makers` entry, if there's no group) also drives the colored **credit tag** shown on the badge detail page and in `badge_gui`'s live preview, alongside type/con/year/edition — no separate field needed.
 
 ### Adding new field values
 

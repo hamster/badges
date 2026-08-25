@@ -98,17 +98,36 @@ def csv_split(raw):
 # Pick an existing badge (for edit / duplicate)
 # ---------------------------------------------------------------------------
 
+def _badge_credit(b):
+    """Group name, or the first maker if there's no group — matches the
+    same fallback badge_gui and the site use for display/filtering."""
+    return b.get("group") or (b.get("makers") or [None])[0] or ""
+
+
 def pick_existing_badge():
     badges = lib.list_badges()
     if not badges:
         print("\nNo existing badges found in _badges/.")
         return None
+
+    # Narrow down by group/maker first, then pick the badge — the flat
+    # list gets unwieldy as the collection grows. "All badges" keeps the
+    # old flat-list behavior available for anyone who prefers it.
+    groups = {}
+    for b in badges:
+        groups.setdefault(_badge_credit(b) or "(no maker/group)", []).append(b)
+    group_names = sorted(groups, key=lambda n: (n == "(no maker/group)", n.lower()))
+
+    menu = ["All badges"] + [f"{name} ({len(groups[name])})" for name in group_names]
+    picked = choose("Browse by group/maker", menu)
+    pool = badges if picked == "All badges" else groups[group_names[menu.index(picked) - 1]]
+
     labels = [
         f"{b['title']}  ({b['con']}/{b['slug']}, {b['year']}, {b['type']}, {b['status']})"
-        for b in badges
+        for b in pool
     ]
     picked_label = choose("Pick a badge", labels)
-    return badges[labels.index(picked_label)]
+    return pool[labels.index(picked_label)]
 
 
 # ---------------------------------------------------------------------------
@@ -286,6 +305,10 @@ def main():
         if picked is None:
             sys.exit(1)
         loaded = lib.get_badge_fields(picked["con"], picked["slug"])
+        if is_duplicate and loaded.get("title") and not loaded["title"].endswith(" COPY"):
+            # Tag the default title so it's obvious this is a new badge
+            # from a copy, not the original — same as badge_gui.
+            loaded["title"] += " COPY"
 
     f = collect_fields(loaded, is_edit)
 

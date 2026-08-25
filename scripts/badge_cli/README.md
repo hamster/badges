@@ -11,8 +11,8 @@ python scripts/badge_cli/badge_cli.py
 On start, choose:
 
 1. **Create a new badge** — prompts through every field (type-dependent sections branch the same way the GUI's form does: SAO vs. minibadge device fields, host SAO/minibadge ports, electronics skipped entirely for `entry`-type badges), then writes `_badges/{con}/{slug}/index.md` and creates `assets/badges/{con}/{slug}/`.
-2. **Edit an existing badge** — pick one from a numbered list, and every prompt shows and defaults to its current value (blank Enter keeps it). Renaming the convention or slug moves the directory, same as the GUI. Its existing notes and "sold at" vendors are shown and can be kept as-is with a single Enter.
-3. **Duplicate an existing badge** — same prompts pre-filled from the source badge, but always creates a new entry with a fresh slug (recomputed once you change the title), and never touches the original.
+2. **Edit an existing badge** — picking the badge is two steps: first choose a group/maker (or "All badges" for the old flat list), then pick the badge from that narrower list. Every prompt then shows and defaults to its current value (blank Enter keeps it). Renaming the convention or slug moves the directory, same as the GUI. Its existing notes and "sold at" vendors are shown and can be kept as-is with a single Enter.
+3. **Duplicate an existing badge** — same group/maker-then-badge picker, then the same prompts pre-filled from the source badge, but the default title has "COPY" appended (so it's obvious this is a new entry, not the original if you just hit Enter through it), always creates a new entry with a fresh slug (recomputed once you change the title), and never touches the original.
 
 Every known-option prompt is a numbered list; typing a value that isn't shown isn't possible here the way the GUI's "+ Add new…" allows — instead, add it to the relevant list in [`../badge_lib.py`](../badge_lib.py) once, and it's available in both tools from then on. (Also: a value the GUI adds and you save is automatically picked up here next run, since both tools scan the same `_badges/` checkout for what's already in use.)
 

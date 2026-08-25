@@ -35,9 +35,74 @@
   {% assign makers_pipe = '' %}
 {% endif %}
 
-{% assign power_sources_str = b.power.sources | join: ' ' %}
 {% assign connectivity_str = b.connectivity | join: ' ' %}
 {% assign features_str = b.features | join: ' ' %}
+
+{% comment %} Power, broadly: power source(s), battery chemistry/cell, and
+  the rail voltage on SAO/minibadge host ports — all filed under one facet {% endcomment %}
+{% assign power_list = "" | split: "" %}
+{% if b.power.sources and b.power.sources.size > 0 %}
+  {% assign power_list = power_list | concat: b.power.sources %}
+{% endif %}
+{% if b.power.battery and b.power.battery != '' and b.power.battery != 'none' %}
+  {% assign one = b.power.battery | split: "," %}
+  {% assign power_list = power_list | concat: one %}
+{% endif %}
+{% if b.power.battery_cell and b.power.battery_cell != '' %}
+  {% assign one = b.power.battery_cell | split: "," %}
+  {% assign power_list = power_list | concat: one %}
+{% endif %}
+{% if b.sao_ports.power and b.sao_ports.power != '' %}
+  {% assign one = b.sao_ports.power | split: "," %}
+  {% assign power_list = power_list | concat: one %}
+{% endif %}
+{% if b.minibadge_ports.power and b.minibadge_ports.power != '' %}
+  {% assign one = b.minibadge_ports.power | split: "," %}
+  {% assign power_list = power_list | concat: one %}
+{% endif %}
+{% assign power_str = power_list | uniq | join: ' ' %}
+
+{% comment %} SAO/minibadge, combined: a badge is only ever one or the other,
+  so its own connector pins and any host-port signals it offers share a
+  single facet rather than two mostly-empty ones {% endcomment %}
+{% assign sao_mb_list = "" | split: "" %}
+{% if b.sao.implements and b.sao.implements.size > 0 %}
+  {% assign sao_mb_list = sao_mb_list | concat: b.sao.implements %}
+{% endif %}
+{% if b.minibadge.implements and b.minibadge.implements.size > 0 %}
+  {% assign sao_mb_list = sao_mb_list | concat: b.minibadge.implements %}
+{% endif %}
+{% if b.sao_ports.implements and b.sao_ports.implements.size > 0 %}
+  {% assign sao_mb_list = sao_mb_list | concat: b.sao_ports.implements %}
+{% endif %}
+{% if b.minibadge_ports.implements and b.minibadge_ports.implements.size > 0 %}
+  {% assign sao_mb_list = sao_mb_list | concat: b.minibadge_ports.implements %}
+{% endif %}
+{% assign sao_mb_str = sao_mb_list | uniq | join: ' ' %}
+
+{% comment %} Flags: fixed yes/no facets rather than values discovered from
+  the data — presence of a token means "yes" for that badge {% endcomment %}
+{% assign flags_list = "" | split: "" %}
+{% if b.docs_url and b.docs_url != '' %}
+  {% assign one = "has-docs" | split: "," %}
+  {% assign flags_list = flags_list | concat: one %}
+{% endif %}
+{% if b.source_repo and b.source_repo != '' %}
+  {% assign one = "has-repo" | split: "," %}
+  {% assign flags_list = flags_list | concat: one %}
+{% endif %}
+{% assign has_vendor = false %}
+{% if b.sold_at and b.sold_at.size > 0 %}{% assign has_vendor = true %}{% endif %}
+{% if b.purchase_url and b.purchase_url != '' %}{% assign has_vendor = true %}{% endif %}
+{% if has_vendor %}
+  {% assign one = "has-vendor" | split: "," %}
+  {% assign flags_list = flags_list | concat: one %}
+{% endif %}
+{% if b.content and b.content != blank %}
+  {% assign one = "has-notes" | split: "," %}
+  {% assign flags_list = flags_list | concat: one %}
+{% endif %}
+{% assign flags_str = flags_list | join: ' ' %}
 
 <a href="{{ b.url | relative_url }}" class="badge-card"
    data-type="{{ b.type }}"
@@ -55,9 +120,12 @@
    data-creator="{{ creator | escape }}"
    data-group="{{ b.group | escape }}"
    data-makers="{{ makers_pipe | escape }}"
-   data-power-sources="{{ power_sources_str }}"
+   data-power="{{ power_str }}"
    data-connectivity="{{ connectivity_str }}"
-   data-features="{{ features_str }}">
+   data-features="{{ features_str }}"
+   data-sao-minibadge="{{ sao_mb_str }}"
+   data-flags="{{ flags_str }}"
+   data-acq-source="{{ b.acquisition.source | escape }}">
   {% if has_image %}
     <div class="badge-card-image">
       <img src="{{ thumb_url }}" alt="{{ b.title }}" loading="lazy">

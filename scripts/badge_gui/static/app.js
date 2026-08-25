@@ -971,25 +971,141 @@
   // Browse / edit / duplicate an existing badge
   // ---------------------------------------------------------------------
 
+  // null = show the groups/makers list first; true = flat "all badges"
+  // list (reached via the "All badges" row, still with a back button);
+  // a string = flat list filtered to that one group/maker's badges.
+  var browseGroup = null;
+
+  function badgeCredit(b) {
+    return b.group || (b.makers && b.makers[0]) || '';
+  }
+
   function openBrowsePanel() {
     document.getElementById('browse-overlay').hidden = false;
     document.getElementById('browse-search').value = '';
     document.getElementById('browse-search').focus();
+    browseGroup = null;
     apiFetch('/api/badges')
       .then(function (r) { return r.json(); })
-      .then(function (data) { allBadgesList = data; renderBrowseList(data); })
-      .catch(function () { renderBrowseList([]); });
+      .then(function (data) { allBadgesList = data; renderBrowseView(); })
+      .catch(function () { allBadgesList = []; renderBrowseView(); });
   }
 
   function closeBrowsePanel() {
     document.getElementById('browse-overlay').hidden = true;
   }
 
-  function renderBrowseList(list) {
+  // Three states share the one picker: a global search (searches every
+  // badge regardless of any group picked below), a list of groups/makers
+  // to narrow down by first, or the flat list of badges within one chosen
+  // group/maker (or all of them, via the "All badges" row).
+  function renderBrowseView() {
+    var q = document.getElementById('browse-search').value.trim().toLowerCase();
+    if (q) {
+      var container = document.getElementById('browse-list');
+      container.innerHTML = '';
+      renderBadgeRows(allBadgesList.filter(function (b) {
+        return (b.title + ' ' + b.con + ' ' + (b.group || '') + ' ' + (b.makers || []).join(' ')).toLowerCase().indexOf(q) !== -1;
+      }), container);
+    } else if (browseGroup === null) {
+      renderGroupsList();
+    } else {
+      renderGroupBadges(browseGroup);
+    }
+  }
+
+  function renderGroupsList() {
     var container = document.getElementById('browse-list');
     container.innerHTML = '';
-    if (!list.length) {
+    if (!allBadgesList.length) {
       container.innerHTML = '<p class="text-muted">No badges found.</p>';
+      return;
+    }
+
+    var groups = {}; // credit -> badges[]
+    allBadgesList.forEach(function (b) {
+      var credit = badgeCredit(b) || '(no maker/group)';
+      (groups[credit] = groups[credit] || []).push(b);
+    });
+    var names = Object.keys(groups).sort(function (a, b) {
+      if (a === '(no maker/group)') return 1;
+      if (b === '(no maker/group)') return -1;
+      return a.localeCompare(b);
+    });
+
+    var allRow = document.createElement('div');
+    allRow.className = 'browse-row browse-row-group';
+    allRow.innerHTML = '<div class="browse-info"><div class="browse-title">All badges</div>' +
+      '<div class="browse-meta text-muted">' + allBadgesList.length + ' total</div></div>' +
+      '<div class="browse-chevron">›</div>';
+    allRow.addEventListener('click', function () { browseGroup = true; renderBrowseView(); });
+    container.appendChild(allRow);
+
+    names.forEach(function (name) {
+      var badges = groups[name];
+      var thumbSrc = (badges.find(function (b) { return b.thumbnail_url; }) || {}).thumbnail_url;
+
+      var row = document.createElement('div');
+      row.className = 'browse-row browse-row-group';
+
+      var thumb = document.createElement('div');
+      thumb.className = 'browse-thumb';
+      if (thumbSrc) {
+        var img = document.createElement('img');
+        img.src = thumbSrc;
+        thumb.appendChild(img);
+      } else {
+        thumb.textContent = '—';
+      }
+
+      var info = document.createElement('div');
+      info.className = 'browse-info';
+      info.innerHTML = '<div class="browse-title">' + esc(name) + '</div>' +
+        '<div class="browse-meta text-muted">' + badges.length + ' badge' + (badges.length === 1 ? '' : 's') + '</div>';
+
+      var chevron = document.createElement('div');
+      chevron.className = 'browse-chevron';
+      chevron.textContent = '›';
+
+      row.appendChild(thumb);
+      row.appendChild(info);
+      row.appendChild(chevron);
+      row.addEventListener('click', function () { browseGroup = name; renderBrowseView(); });
+      container.appendChild(row);
+    });
+  }
+
+  function renderGroupBadges(name) {
+    var container = document.getElementById('browse-list');
+    container.innerHTML = '';
+
+    var back = document.createElement('button');
+    back.type = 'button';
+    back.className = 'browse-back';
+    back.textContent = '‹ All groups';
+    back.addEventListener('click', function () { browseGroup = null; renderBrowseView(); });
+    container.appendChild(back);
+
+    var heading = document.createElement('div');
+    heading.className = 'browse-group-heading';
+    heading.textContent = name === true ? 'All badges' : name;
+    container.appendChild(heading);
+
+    var badges = name === true
+      ? allBadgesList
+      : allBadgesList.filter(function (b) { return (badgeCredit(b) || '(no maker/group)') === name; });
+    renderBadgeRows(badges, container);
+  }
+
+  // Renders one row per badge (with Edit/Duplicate actions) into `container`.
+  // Shared by the flat search results, the "All badges" row, and a chosen
+  // group/maker's badge list.
+  function renderBadgeRows(list, container) {
+    if (!list.length) {
+      var empty = document.createElement('p');
+      empty.className = 'text-muted';
+      empty.textContent = 'No badges found.';
+      container.appendChild(empty);
       return;
     }
     list.forEach(function (b) {
@@ -1064,7 +1180,12 @@
   function applyLoadedFields(data, mode) {
     resetForm();
 
-    setVal('f-title', data.title);
+    // Duplicating makes a new badge from an existing one as a starting
+    // point — tag the title so it's obvious this isn't the original and
+    // won't get confused with it (e.g. left un-renamed and saved as-is).
+    var title = data.title || '';
+    if (mode === 'duplicate' && title && !/ COPY$/.test(title)) title += ' COPY';
+    setVal('f-title', title);
     setVal('f-year', data.year);
     setSelectValue('f-con', data.con);
     setSelectValue('f-badge_type', data.badge_type);
@@ -1184,13 +1305,7 @@
     document.getElementById('browse-overlay').addEventListener('click', function (e) {
       if (e.target.id === 'browse-overlay') closeBrowsePanel();
     });
-    document.getElementById('browse-search').addEventListener('input', function () {
-      var q = this.value.trim().toLowerCase();
-      if (!q) { renderBrowseList(allBadgesList); return; }
-      renderBrowseList(allBadgesList.filter(function (b) {
-        return (b.title + ' ' + b.con + ' ' + (b.group || '') + ' ' + (b.makers || []).join(' ')).toLowerCase().indexOf(q) !== -1;
-      }));
-    });
+    document.getElementById('browse-search').addEventListener('input', renderBrowseView);
 
     document.getElementById('preview-mode-rendered').addEventListener('click', function () { setPreviewMode('rendered'); });
     document.getElementById('preview-mode-raw').addEventListener('click', function () { setPreviewMode('raw'); });

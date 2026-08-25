@@ -150,18 +150,27 @@ title: Home
   // ===== Advanced parametric filter (Digikey-style multi-select facets) =====
 
   var FACETS = [
-    { key: 'group',        label: 'Group',        multi: false },
-    { key: 'makers',       label: 'Maker',        multi: true, separator: '|' },
-    { key: 'edition',      label: 'Edition',      multi: false },
-    { key: 'mcu',          label: 'MCU',          multi: false },
-    { key: 'display',      label: 'Display',      multi: false },
-    { key: 'interface',    label: 'USB',          multi: false },
-    { key: 'programming',  label: 'Programming',  multi: false },
-    { key: 'rarity',       label: 'Rarity',       multi: false },
-    { key: 'status',       label: 'Status',       multi: false },
-    { key: 'powerSources', label: 'Power source', multi: true },
-    { key: 'connectivity', label: 'Wireless',     multi: true },
-    { key: 'features',     label: 'Features',     multi: true }
+    { key: 'con',          label: 'Con',             multi: false },
+    { key: 'group',        label: 'Group',           multi: false },
+    { key: 'makers',       label: 'Maker',           multi: true, separator: '|' },
+    { key: 'acqSource',    label: 'Acquired from',   multi: false },
+    { key: 'edition',      label: 'Edition',         multi: false },
+    { key: 'mcu',          label: 'MCU',             multi: false },
+    { key: 'display',      label: 'Display',         multi: false },
+    { key: 'interface',    label: 'USB',             multi: false },
+    { key: 'programming',  label: 'Programming',     multi: false },
+    { key: 'rarity',       label: 'Rarity',          multi: false },
+    { key: 'status',       label: 'Status',          multi: false },
+    { key: 'power',        label: 'Power',           multi: true },
+    { key: 'connectivity', label: 'Wireless',        multi: true },
+    { key: 'features',     label: 'Other features',  multi: true },
+    { key: 'saoMinibadge', label: 'SAO / Minibadge', multi: true },
+    { key: 'flags',        label: 'Flags',           multi: true, options: [
+        { value: 'has-docs',   label: 'Has docs' },
+        { value: 'has-repo',   label: 'Has repo/source' },
+        { value: 'has-vendor', label: 'Has vendor/purchase link' },
+        { value: 'has-notes',  label: 'Has notes' }
+      ] }
   ];
 
   var activeFacets = {};
@@ -176,11 +185,22 @@ title: Home
 
   // Build each facet column from the values actually present in the collection —
   // laid out side by side like Digikey's parametric search, each column its own
-  // scrollable list, rather than a single narrow dropdown.
+  // scrollable list, rather than a single narrow dropdown. A facet can instead
+  // supply a fixed `options` list (value + display label) — used for the Flags
+  // column, whose values are computed booleans rather than discovered strings.
   FACETS.forEach(function (facet) {
-    var all = [];
-    cards.forEach(function (card) { all = all.concat(cardFacetValues(card, facet)); });
-    var values = uniqueSorted(all);
+    var values; // [{ value, label }]
+    if (facet.options) {
+      var present = {};
+      cards.forEach(function (card) {
+        cardFacetValues(card, facet).forEach(function (v) { present[v] = true; });
+      });
+      values = facet.options.filter(function (opt) { return present[opt.value]; });
+    } else {
+      var all = [];
+      cards.forEach(function (card) { all = all.concat(cardFacetValues(card, facet)); });
+      values = uniqueSorted(all).map(function (v) { return { value: v, label: v }; });
+    }
     if (!values.length) return; // nothing to filter on for this facet yet
 
     var column = document.createElement('div');
@@ -202,13 +222,16 @@ title: Home
       searchWithin.addEventListener('input', function () {
         var q = searchWithin.value.trim().toLowerCase();
         list.querySelectorAll('.facet-option').forEach(function (opt) {
-          opt.hidden = q && opt.dataset.value.toLowerCase().indexOf(q) === -1;
+          var text = opt.querySelector('.facet-option-label').textContent.toLowerCase();
+          opt.hidden = q && text.indexOf(q) === -1;
         });
       });
       column.appendChild(searchWithin);
     }
 
-    values.forEach(function (value) {
+    values.forEach(function (opt) {
+      var value = opt.value, optLabel = opt.label;
+
       var label = document.createElement('label');
       label.className = 'facet-option';
       label.dataset.value = value;
@@ -224,7 +247,7 @@ title: Home
 
       var text = document.createElement('span');
       text.className = 'facet-option-label';
-      text.textContent = value;
+      text.textContent = optLabel;
 
       var count = document.createElement('span');
       count.className = 'facet-option-count';
