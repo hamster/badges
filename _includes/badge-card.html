@@ -2,8 +2,10 @@
 {% assign has_image = false %}
 {% if b.images and b.images.size > 0 %}
   {% assign has_image = true %}
-  {% assign first_img = b.images | first %}
-  {% assign thumb_url = '/assets/badges/' | append: b.con | append: '/' | append: b.slug | append: '/' | append: first_img.filename | relative_url %}
+  {% comment %} A highlighted image (set in badge_gui) wins over plain list order {% endcomment %}
+  {% assign highlighted_img = b.images | where: "highlight", true | first %}
+  {% assign thumb_img = highlighted_img | default: b.images.first %}
+  {% assign thumb_url = '/assets/badges/' | append: b.con | append: '/' | append: b.slug | append: '/' | append: thumb_img.filename | relative_url %}
 {% endif %}
 
 {% comment %} Resolve display credit: group > makers list > legacy maker string {% endcomment %}
@@ -21,12 +23,37 @@
 {% assign makers_str = b.makers | join: ' ' %}
 {% assign search_text = b.title | append: ' ' | append: makers_str | append: ' ' | append: b.group | append: ' ' | append: b.maker | downcase %}
 
+{% comment %} Resolve creator separately from the group-preferred display credit above {% endcomment %}
+{% if b.makers and b.makers.size > 0 %}
+  {% assign creator = b.makers | join: ", " %}
+{% elsif b.maker and b.maker != '' %}
+  {% assign creator = b.maker %}
+{% else %}
+  {% assign creator = '' %}
+{% endif %}
+
+{% assign power_sources_str = b.power.sources | join: ' ' %}
+{% assign connectivity_str = b.connectivity | join: ' ' %}
+{% assign features_str = b.features | join: ' ' %}
+
 <a href="{{ b.url | relative_url }}" class="badge-card"
    data-type="{{ b.type }}"
    data-con="{{ b.con }}"
    data-year="{{ b.year }}"
    data-title="{{ b.title | downcase | escape }}"
-   data-search="{{ search_text | escape }}">
+   data-search="{{ search_text | escape }}"
+   data-edition="{{ b.edition }}"
+   data-mcu="{{ b.mcu }}"
+   data-display="{{ b.display }}"
+   data-interface="{{ b.interface }}"
+   data-programming="{{ b.programming }}"
+   data-rarity="{{ b.rarity }}"
+   data-status="{{ b.status }}"
+   data-creator="{{ creator | escape }}"
+   data-group="{{ b.group | escape }}"
+   data-power-sources="{{ power_sources_str }}"
+   data-connectivity="{{ connectivity_str }}"
+   data-features="{{ features_str }}">
   {% if has_image %}
     <div class="badge-card-image">
       <img src="{{ thumb_url }}" alt="{{ b.title }}" loading="lazy">

@@ -2,6 +2,7 @@ title: "the hamster badge museum"
 description: "A curated collection of electronic conference badges from DEF CON, SAINTCON, and beyond."
 url: "https://hamster.github.io"
 baseurl: "/badges"
+repository: "hamster/badges"
 
 collections:
   badges:

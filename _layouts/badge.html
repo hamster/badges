@@ -4,6 +4,15 @@ layout: default
 
 {% assign img_base = '/assets/badges/' | append: page.con | append: '/' | append: page.slug | append: '/' %}
 
+{% comment %} Credit tag: group name, or the first maker if there's no group {% endcomment %}
+{% if page.group and page.group != '' %}
+  {% assign credit_tag = page.group %}
+{% elsif page.makers and page.makers.size > 0 %}
+  {% assign credit_tag = page.makers.first %}
+{% elsif page.maker and page.maker != '' %}
+  {% assign credit_tag = page.maker %}
+{% endif %}
+
 <div class="breadcrumb">
   <a href="{{ '/' | relative_url }}">museum</a>
   <span class="sep">/</span>
@@ -17,6 +26,7 @@ layout: default
   <div class="badge-detail-meta-row">
     {% if page.type %}<span class="tag tag-type-{{ page.type }}">{{ page.type | upcase }}</span>{% endif %}
     {% if page.con %}<span class="tag tag-con-{{ page.con }}">{{ page.con | upcase }}</span>{% endif %}
+    {% if credit_tag %}<span class="tag tag-credit">{{ credit_tag }}</span>{% endif %}
     {% if page.year %}<span class="tag">{{ page.year }}</span>{% endif %}
     {% if page.edition and page.edition != '' %}<span class="tag">{{ page.edition }}</span>{% endif %}
     {% if page.status == 'stub' %}<span class="tag tag-status-stub">stub</span>{% endif %}
@@ -26,19 +36,44 @@ layout: default
 
 <div class="badge-detail-body">
 
+  {% comment %}
+    At most one image or video across both lists is ever "the highlight"
+    (set from badge_gui). A highlighted video leads as a hero clip
+    above the gallery; a highlighted image becomes the gallery's main
+    image. Falls back to "first of whichever exists" when nothing is
+    explicitly highlighted.
+  {% endcomment %}
+  {% assign highlighted_image = page.images | where: "highlight", true | first %}
+  {% assign highlighted_video = page.videos | where: "highlight", true | first %}
+  {% assign main_image = highlighted_image | default: page.images.first %}
+  {% if highlighted_video %}
+    {% assign other_videos = page.videos | where_exp: "v", "v.filename != highlighted_video.filename" %}
+  {% else %}
+    {% assign other_videos = page.videos %}
+  {% endif %}
+
   <div class="badge-detail-left">
+    {% if highlighted_video %}
+      <div class="badge-videos">
+        <video class="badge-video" src="{{ img_base | append: highlighted_video.filename | relative_url }}"
+               autoplay muted loop playsinline controls></video>
+        {% if highlighted_video.caption and highlighted_video.caption != '' %}
+          <div class="badge-video-caption">{{ highlighted_video.caption }}</div>
+        {% endif %}
+      </div>
+    {% endif %}
+
     <div class="badge-gallery">
       {% if page.images and page.images.size > 0 %}
-        {% assign first_img = page.images | first %}
         <div class="gallery-main" id="gallery-main">
-          <img src="{{ img_base | append: first_img.filename | relative_url }}"
-               alt="{{ first_img.caption | default: page.title }}"
+          <img src="{{ img_base | append: main_image.filename | relative_url }}"
+               alt="{{ main_image.caption | default: page.title }}"
                id="gallery-main-img">
         </div>
         {% if page.images.size > 1 %}
           <div class="gallery-thumbs">
             {% for image in page.images %}
-              <div class="gallery-thumb{% if forloop.first %} active{% endif %}"
+              <div class="gallery-thumb{% if image.filename == main_image.filename %} active{% endif %}"
                    data-src="{{ img_base | append: image.filename | relative_url }}"
                    data-alt="{{ image.caption | default: page.title | escape }}">
                 <img src="{{ img_base | append: image.filename | relative_url }}"
@@ -47,12 +82,24 @@ layout: default
             {% endfor %}
           </div>
         {% endif %}
-      {% else %}
+      {% elsif highlighted_video == nil %}
         <div class="gallery-main">
           <div class="gallery-main-placeholder">[ no images yet ]</div>
         </div>
       {% endif %}
     </div>
+
+    {% if other_videos and other_videos.size > 0 %}
+      <div class="badge-videos">
+        {% for video in other_videos %}
+          <video class="badge-video" src="{{ img_base | append: video.filename | relative_url }}"
+                 autoplay muted loop playsinline controls></video>
+          {% if video.caption and video.caption != '' %}
+            <div class="badge-video-caption">{{ video.caption }}</div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    {% endif %}
 
     <div class="badge-links">
       {% if page.docs_url and page.docs_url != '' %}

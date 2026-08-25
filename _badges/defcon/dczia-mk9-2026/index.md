@@ -19,7 +19,7 @@ power:
   current_ma: null
 sao_ports:
   count: 2
-  implements: [i2c, gpio, 3v3]
+  implements: [i2c, gpio]
   power: 3v3
 interface: USB-C
 programming: USB-DFU

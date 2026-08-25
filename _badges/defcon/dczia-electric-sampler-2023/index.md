@@ -19,7 +19,7 @@ power:
   current_ma: null
 sao_ports:
   count: 1
-  implements: [3v3]
+  implements: []
   power: 3v3
 interface: USB-C
 programming: USB-DFU

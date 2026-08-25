@@ -11,8 +11,9 @@
 <body>
   <nav class="site-nav">
     <div class="nav-inner">
+      {% assign gh_owner = site.repository | split: '/' | first %}
       <a href="{{ '/' | relative_url }}" class="nav-brand">
-        <img src="https://avatars.githubusercontent.com/u/412629" alt="" class="nav-logo" width="28" height="28">
+        <img src="https://github.com/{{ gh_owner }}.png" alt="" class="nav-logo" width="28" height="28">
         {{ site.title }}
       </a>
       <ul class="nav-links">
@@ -33,7 +34,7 @@
 
   <footer class="site-footer">
     {{ site.badges | size }} badges in the museum &mdash;
-    <a href="https://github.com/hamster/badges">source</a>
+    <a href="https://github.com/{{ site.repository }}">source</a>
   </footer>
 </body>
 </html>
