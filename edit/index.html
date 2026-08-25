@@ -10,16 +10,22 @@ permalink: /edit/
 <div id="repo-picker" class="repo-picker">
   <div class="repo-picker-inner">
     <h2 class="text-accent font-mono">Badge Add/Edit</h2>
-    <p>Open your local clone of this repo to add or edit badges directly from the browser. Files are written straight to disk — nothing is committed or pushed automatically.</p>
+    <p>Open your local clone of this repo to add or edit badges directly from the browser. Files are written straight to disk - nothing is committed or pushed automatically.</p>
     <button type="button" id="open-repo-btn" class="btn-primary">Open repo…</button>
     <p class="text-muted hint-note">Requires Chrome or Edge (File System Access API). Firefox is not supported.</p>
+    <ol class="repo-help">
+      <li>Clone <a href="https://github.com/{{ site.repository }}" target="_blank" rel="noopener">the repo</a> to your local disk:<br><code>git clone https://github.com/{{ site.repository }}.git</code></li>
+      <li>Click <strong>Open repo…</strong> above and select the cloned folder</li>
+      <li>Add or edit badges - files are written straight to disk, nothing is committed automatically</li>
+      <li>When done, <code>git add</code> / <code>git commit</code> / push or open a PR to publish your changes</li>
+    </ol>
   </div>
 </div>
 
 <div id="admin-ui" hidden>
 
   <div class="admin-header">
-    <p class="text-muted">Repo: <strong id="repo-name"></strong> — Add or edit a badge. Nothing is committed or pushed automatically.</p>
+    <p class="text-muted">Repo: <strong id="repo-name"></strong> - Add or edit a badge. Nothing is committed or pushed automatically.</p>
   </div>
 
   <div class="admin-toolbar">
@@ -31,7 +37,7 @@ permalink: /edit/
   <div id="browse-overlay" class="browse-overlay" hidden>
     <div class="browse-panel">
       <div class="browse-panel-header">
-        <input type="search" id="browse-search" placeholder="Search all badges — or browse by group/maker below…">
+        <input type="search" id="browse-search" placeholder="Search all badges - or browse by group/maker below…">
         <button type="button" id="browse-close" class="btn-secondary">✕ Close</button>
       </div>
       <div id="browse-list" class="browse-list"></div>
@@ -214,10 +220,6 @@ permalink: /edit/
             <input type="url" id="f-source-repo">
           </label>
         </div>
-        <label class="field">
-          <span>Primary purchase URL</span>
-          <input type="url" id="f-purchase-url">
-        </label>
         <div id="sold-at-list" class="sold-at-list"></div>
         <button type="button" id="add-sold-at" class="btn-secondary">+ Add vendor</button>
         <div id="links-list" class="links-list"></div>
@@ -228,7 +230,7 @@ permalink: /edit/
         <legend>Photos &amp; video</legend>
         <div id="dropzone" class="dropzone">
           <p>Drag &amp; drop photos or videos here, or click to choose files</p>
-          <p class="text-muted" style="font-size:12px;margin:4px 0 0">Videos are stored as-is — use MP4 for best browser compatibility.</p>
+          <p class="text-muted" style="font-size:12px;margin:4px 0 0">Videos are stored as-is - use MP4 for best browser compatibility.</p>
           <input type="file" id="file-input" accept="image/*,video/*" multiple hidden>
         </div>
         <div id="image-list" class="image-list"></div>
@@ -237,7 +239,7 @@ permalink: /edit/
 
       <fieldset class="admin-section">
         <legend>Notes</legend>
-        <textarea id="f-notes" rows="4" placeholder="*Stub — add notes, specs, and photos.*"></textarea>
+        <textarea id="f-notes" rows="4" placeholder="*Stub - add notes, specs, and photos.*"></textarea>
       </fieldset>
 
       <fieldset class="admin-section">

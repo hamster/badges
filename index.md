@@ -13,7 +13,7 @@ title: Home
 {% assign other_count = all_badges | where: "type", "other"      | size %}
 
 <div class="page-header">
-  <p class="lead">My personal museum of electronic conference badges — from DEF CON, SAINTCON, and beyond — that I actually own, cataloged with photos, specs, and source links. Notice something missing or wrong? <a href="https://github.com/{{ site.repository }}">Please submit a PR.</a></p>
+  <p class="lead">My personal museum of electronic conference badges - from DEF CON, SAINTCON, and beyond - that I actually own, cataloged with photos, specs, and source links. Notice something missing or wrong? <a href="https://github.com/{{ site.repository }}">Please submit a PR.</a></p>
 </div>
 
 <div class="stats-bar">
@@ -39,7 +39,7 @@ title: Home
 <div class="empty-state">
   <div class="empty-state-icon">📡</div>
   <p>No badges cataloged yet.</p>
-  <p>Run <code>python scripts/badge_cli/badge_cli.py</code> to add the first one.</p>
+  <p>Visit <a href="edit">the edit page</a> to add the first one.</p>
 </div>
 {% else %}
 
@@ -268,6 +268,36 @@ title: Home
     advToggle.classList.toggle('active', !advPanel.hidden);
   });
 
+  // Card facet links: intercept clicks on the card <a> itself; if the click target
+  // is a facet-link child, cancel navigation and apply the filter in-place instead.
+  cards.forEach(function (card) {
+    card.addEventListener('click', function (e) {
+      var el = e.target.closest('.card-facet-link');
+      if (!el) return;
+      e.preventDefault();
+      var facet = el.dataset.filterFacet;
+      var value = el.dataset.filterValue;
+      if (!facet || !value) return;
+      if (facet === 'type') {
+        activeType = value;
+        typeChips.forEach(function (c) { c.classList.toggle('active', c.dataset.type === value); });
+      } else if (facet === 'year') {
+        yearSelect.value = value;
+      } else if (facet === 'con') {
+        conSelect.value = value;
+      } else {
+        activeFacets[facet].add(value);
+        advPanel.querySelectorAll('.facet-option-count[data-facet="' + facet + '"][data-value="' + value + '"]').forEach(function (countEl) {
+          var cb = countEl.closest('.facet-option').querySelector('input[type=checkbox]');
+          if (cb) cb.checked = true;
+        });
+        advPanel.hidden = false;
+        advToggle.classList.add('active');
+      }
+      applyFilters();
+    });
+  });
+
   // Does a card pass every active filter except (optionally) one facet's own selection?
   // Excluding a facet from its own check is what lets us show accurate "if you also
   // picked this" counts on its own options.
@@ -488,6 +518,30 @@ title: Home
   viewGridBtn.addEventListener('click', function () { setView('grid'); });
   viewTableBtn.addEventListener('click', function () { setView('table'); });
   columnsToggle.addEventListener('click', function () { columnsPanel.hidden = !columnsPanel.hidden; });
+
+  // Pre-apply filters from URL params (linked from badge detail page tags)
+  (function () {
+    var params = new URLSearchParams(window.location.search);
+    var pType = params.get('type');
+    if (pType) {
+      activeType = pType;
+      typeChips.forEach(function (c) { c.classList.toggle('active', c.dataset.type === pType); });
+    }
+    var pYear = params.get('year'); if (pYear) yearSelect.value = pYear;
+    var pCon  = params.get('con');  if (pCon)  conSelect.value  = pCon;
+    var needsAdv = false;
+    [['group', 'group'], ['edition', 'edition'], ['status', 'status'], ['makers', 'maker']].forEach(function (pair) {
+      var facetKey = pair[0], paramKey = pair[1];
+      var v = params.get(paramKey); if (!v) return;
+      activeFacets[facetKey].add(v);
+      advPanel.querySelectorAll('.facet-option-count[data-facet="' + facetKey + '"][data-value="' + v + '"]').forEach(function (el) {
+        var cb = el.closest('.facet-option').querySelector('input[type=checkbox]');
+        if (cb) cb.checked = true;
+      });
+      needsAdv = true;
+    });
+    if (needsAdv) { advPanel.hidden = false; advToggle.classList.add('active'); }
+  })();
 
   applyFilters();
   setView(currentView);

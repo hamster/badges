@@ -24,7 +24,7 @@ layout: default
 <div class="empty-state">
   <div class="empty-state-icon">📡</div>
   <p>No {{ page.badge_type }}s cataloged yet.</p>
-  <p>Run <code>python scripts/badge_cli/badge_cli.py</code> to add the first one.</p>
+  <p>Visit <a href="{{ '/edit/' | relative_url }}">the edit page</a> to add the first one.</p>
 </div>
 {% else %}
 <div class="badge-grid">

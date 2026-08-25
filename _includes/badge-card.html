@@ -5,7 +5,7 @@
   {% comment %} A highlighted image (set in badge_gui) wins over plain list order {% endcomment %}
   {% assign highlighted_img = b.images | where: "highlight", true | first %}
   {% assign thumb_img = highlighted_img | default: b.images.first %}
-  {% assign thumb_url = '/assets/badges/' | append: b.con | append: '/' | append: b.slug | append: '/' | append: thumb_img.filename | relative_url %}
+  {% assign thumb_url = '/' | append: b.con | append: '/' | append: b.slug | append: '/' | append: thumb_img.filename | relative_url %}
 {% endif %}
 
 {% comment %} Resolve display credit: group > makers list > legacy maker string {% endcomment %}
@@ -17,6 +17,21 @@
   {% assign display_credit = b.maker %}
 {% else %}
   {% assign display_credit = '—' %}
+{% endif %}
+
+{% comment %} Resolve a single filterable credit value: group wins; single maker is directly filterable {% endcomment %}
+{% if b.group and b.group != '' %}
+  {% assign credit_filter_facet = 'group' %}
+  {% assign credit_filter_value = b.group %}
+{% elsif b.makers and b.makers.size == 1 %}
+  {% assign credit_filter_facet = 'makers' %}
+  {% assign credit_filter_value = b.makers.first %}
+{% elsif b.maker and b.maker != '' %}
+  {% assign credit_filter_facet = 'makers' %}
+  {% assign credit_filter_value = b.maker %}
+{% else %}
+  {% assign credit_filter_facet = '' %}
+  {% assign credit_filter_value = '' %}
 {% endif %}
 
 {% comment %} Build searchable text for JS filtering {% endcomment %}
@@ -138,11 +153,15 @@
   {% endif %}
   <div class="badge-card-body">
     <div class="badge-card-title">{{ b.title }}</div>
-    <div class="badge-card-meta">{{ display_credit }} &middot; {{ b.year }}</div>
+    <div class="badge-card-meta">
+      {% if credit_filter_value != '' %}<span class="card-facet-link" data-filter-facet="{{ credit_filter_facet }}" data-filter-value="{{ credit_filter_value | escape }}">{{ display_credit }}</span>{% else %}{{ display_credit }}{% endif %}
+      &middot;
+      <span class="card-facet-link" data-filter-facet="year" data-filter-value="{{ b.year }}">{{ b.year }}</span>
+    </div>
     <div class="badge-tags">
-      {% if b.type %}<span class="tag tag-type-{{ b.type }}">{{ b.type }}</span>{% endif %}
-      {% if b.con %}<span class="tag tag-con-{{ b.con }}">{{ b.con }}</span>{% endif %}
-      {% if b.mcu and b.mcu != '' %}<span class="tag">{{ b.mcu }}</span>{% endif %}
+      {% if b.type %}<span class="tag tag-type-{{ b.type }} card-facet-link" data-filter-facet="type" data-filter-value="{{ b.type }}">{{ b.type }}</span>{% endif %}
+      {% if b.con %}<span class="tag tag-con-{{ b.con }} card-facet-link" data-filter-facet="con" data-filter-value="{{ b.con }}">{{ b.con }}</span>{% endif %}
+      {% if b.mcu and b.mcu != '' %}<span class="tag card-facet-link" data-filter-facet="mcu" data-filter-value="{{ b.mcu | escape }}">{{ b.mcu }}</span>{% endif %}
     </div>
   </div>
 </a>

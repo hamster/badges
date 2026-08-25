@@ -2,16 +2,20 @@
 layout: default
 ---
 
-{% assign img_base = '/_badges/' | append: page.con | append: '/' | append: page.slug | append: '/' %}
+{% assign img_base = '/' | append: page.con | append: '/' | append: page.slug | append: '/' %}
 
 {% comment %} Credit tag: group name, or the first maker if there's no group {% endcomment %}
 {% if page.group and page.group != '' %}
   {% assign credit_tag = page.group %}
+  {% assign credit_facet = 'group' %}
 {% elsif page.makers and page.makers.size > 0 %}
   {% assign credit_tag = page.makers.first %}
+  {% assign credit_facet = 'maker' %}
 {% elsif page.maker and page.maker != '' %}
   {% assign credit_tag = page.maker %}
+  {% assign credit_facet = 'maker' %}
 {% endif %}
+{% assign home_url = '/' | relative_url %}
 
 <div class="breadcrumb">
   <a href="{{ '/' | relative_url }}">museum</a>
@@ -24,13 +28,14 @@ layout: default
 <div class="badge-detail-header">
   <h1>{{ page.title }}</h1>
   <div class="badge-detail-meta-row">
-    {% if page.type %}<span class="tag tag-type-{{ page.type }}">{{ page.type | upcase }}</span>{% endif %}
-    {% if page.con %}<span class="tag tag-con-{{ page.con }}">{{ page.con | upcase }}</span>{% endif %}
-    {% if credit_tag %}<span class="tag tag-credit">{{ credit_tag }}</span>{% endif %}
-    {% if page.year %}<span class="tag">{{ page.year }}</span>{% endif %}
-    {% if page.edition and page.edition != '' %}<span class="tag">{{ page.edition }}</span>{% endif %}
-    {% if page.status == 'stub' %}<span class="tag tag-status-stub">stub</span>{% endif %}
-    {% if page.status == 'complete' %}<span class="tag tag-status-complete">complete</span>{% endif %}
+    {% if page.type %}<a href="{{ home_url }}?type={{ page.type }}" class="tag tag-type-{{ page.type }}">{{ page.type | upcase }}</a>{% endif %}
+    {% if page.con %}<a href="{{ home_url }}?con={{ page.con }}" class="tag tag-con-{{ page.con }}">{{ page.con | upcase }}</a>{% endif %}
+    {% if credit_tag %}<a href="{{ home_url }}?{{ credit_facet }}={{ credit_tag | url_encode }}" class="tag tag-credit">{{ credit_tag }}</a>{% endif %}
+    {% if page.year %}<a href="{{ home_url }}?year={{ page.year }}" class="tag">{{ page.year }}</a>{% endif %}
+    {% if page.edition and page.edition != '' %}<a href="{{ home_url }}?edition={{ page.edition | url_encode }}" class="tag">{{ page.edition }}</a>{% endif %}
+    {% if page.status == 'stub' %}<a href="{{ home_url }}?status=stub" class="tag tag-status-stub">stub</a>{% endif %}
+    {% if page.status == 'complete' %}<a href="{{ home_url }}?status=complete" class="tag tag-status-complete">complete</a>{% endif %}
+    <a href="{{ '/edit/' | relative_url }}?con={{ page.con }}&amp;slug={{ page.slug }}" class="tag tag-edit">Edit</a>
   </div>
 </div>
 

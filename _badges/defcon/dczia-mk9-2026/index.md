@@ -35,6 +35,7 @@ sold_at:
   - vendor: "UberFlux"
     url: "https://uberflux.com/product/HAMST-DCZIA-2026"
 purchase_url: ""
+links: []
 images: 
   - filename: "img20260825012155.jpg"
     caption: ""
@@ -52,6 +53,7 @@ images:
 videos: 
   - filename: "vid20260825012231.mp4"
     caption: ""
+videos: []
 status: stub
 ---
 

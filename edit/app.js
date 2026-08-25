@@ -21,7 +21,8 @@
     port_power:             ['3v3', 'vbatt', '5v'],
     interface:              ['none', 'USB-C', 'micro-USB', 'mini-USB'],
     programming:            ['none', 'JTAG', 'SWD', 'UART', 'USB-DFU', 'other'],
-    connectivity:           ['wifi', 'bluetooth', 'ir', 'nfc', 'lora', 'zigbee', 'rf', 'other'],
+    connectivity:           ['wifi', 'bluetooth', 'ir', 'nfc', 'lora', 'zigbee', 'rf'],
+    features:               ['neopixels', 'leds', 'speaker', 'buzzer', 'buttons', 'joystick', 'accelerometer', 'microphone', 'haptics', 'sd-card', 'rtc', 'ir-leds'],
     rarity:                 ['unknown', 'limited', 'small-run', 'mass-produced'],
     status:                 ['stub', 'wip', 'complete'],
   };
@@ -431,15 +432,18 @@
       }
       out[key] = combined;
     });
-    ['makers', 'group', 'mcu', 'features'].forEach(function (key) {
+    ['makers', 'group', 'mcu'].forEach(function (key) {
       out[key] = scanned[key] ? Array.from(scanned[key]).sort() : [];
     });
     return out;
   }
 
-  async function getBadgeFields(con, slug) {
-    var conHandle = await badgesDir.getDirectoryHandle(con);
-    var slugHandle = await conHandle.getDirectoryHandle(slug);
+  async function getBadgeFields(con, slug, existingSlugHandle) {
+    var slugHandle = existingSlugHandle;
+    if (!slugHandle) {
+      var conHandle = await badgesDir.getDirectoryHandle(con);
+      slugHandle = await conHandle.getDirectoryHandle(slug);
+    }
     var indexHandle = await slugHandle.getFileHandle('index.md');
     var file = await indexHandle.getFile();
     var text = await file.text();
@@ -612,12 +616,17 @@
     var btn = this;
     btn.disabled = true;
     btn.textContent = 'Opening…';
-    var ok = await openRepo();
-    if (ok) {
-      document.getElementById('repo-picker').hidden = true;
-      document.getElementById('admin-ui').hidden = false;
-      await initAdminUi();
-    } else {
+    try {
+      var ok = await openRepo();
+      if (ok) {
+        document.getElementById('repo-picker').hidden = true;
+        document.getElementById('admin-ui').hidden = false;
+        await initAdminUi();
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Open repo…';
+      }
+    } catch (e) {
       btn.disabled = false;
       btn.textContent = 'Open repo…';
     }
@@ -649,6 +658,19 @@
     wireStaticControls();
     scheduleFieldsChanged();
     setStatus('', false);
+
+    // Auto-load badge when arriving via "Edit this badge…" link from a badge detail page
+    var params = new URLSearchParams(window.location.search);
+    var autocon = params.get('con'), autoslug = params.get('slug');
+    if (autocon && autoslug) {
+      try {
+        var conH = await badgesDir.getDirectoryHandle(autocon);
+        var slugH = await conH.getDirectoryHandle(autoslug);
+        await loadBadge(autocon, autoslug, slugH, 'edit');
+      } catch (e) {
+        setStatus('Could not find ' + autocon + '/' + autoslug + ' in this repo.', true);
+      }
+    }
   }
 
   // -------------------------------------------------------------------------

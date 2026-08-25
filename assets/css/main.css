@@ -287,10 +287,20 @@ main { padding: 40px 0 80px; }
 .tag-status-complete{ border-color: #166534; color: #4ade80; background: #0a1f0d; }
 .tag-credit          { border-color: #86198f; color: #e879f9; background: #2a0a2e; }
 
+a.tag { text-decoration: none; }
+a.tag:hover { opacity: 0.75; }
+
+.badge-card-meta .card-facet-link { cursor: pointer; }
+.badge-card-meta .card-facet-link:hover { text-decoration: underline; }
+.badge-tags .card-facet-link { cursor: pointer; }
+.badge-tags .card-facet-link:hover { opacity: 0.75; }
+
 /* ===== Badge detail ===== */
 .badge-detail-header { margin-bottom: 32px; }
 .badge-detail-header h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 12px; }
 .badge-detail-meta-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.tag-edit { margin-left: auto; text-decoration: none; border-color: var(--border); color: var(--text-muted); }
+.tag-edit:hover { color: var(--text); border-color: var(--text-muted); }
 
 .badge-detail-body {
   display: grid;

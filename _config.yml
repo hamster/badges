@@ -23,7 +23,6 @@ plugins:
 exclude:
   - Gemfile
   - Gemfile.lock
-  - scripts/
   - _template/
   - README.md
   - TODO.md

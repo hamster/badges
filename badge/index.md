@@ -1,6 +1,6 @@
 ---
 layout: category
-title: "Conference Badges"
+title: "Badges"
 badge_type: badge
-description: "Full conference badges — the main event hardware, packed with electronics, games, and crypto challenges."
+description: "Full badges — packed with electronics, games, and crypto challenges."
 ---
