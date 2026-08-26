@@ -2,7 +2,7 @@
 layout: badge
 title: "Mk9"
 slug: dczia-mk9-2026
-badge_id: "005"
+badge_id: "00E"
 year: 2026
 con: defcon
 event: "DEF CON 34"
@@ -51,7 +51,9 @@ images:
     caption: ""
   - filename: "img20260825011844.jpg"
     caption: ""
-videos: []
+videos: 
+  - filename: "vid20260825012231.mp4"
+    caption: ""
 status: stub
 ---
 
