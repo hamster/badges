@@ -15,7 +15,7 @@
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
 body {
   background: var(--bg);
@@ -62,8 +62,13 @@ code { font-family: var(--font-mono); background: var(--surface-2); padding: 2px
 
   .nav-brand { flex-basis: 100%; }
 
+  .nav-links {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
   .nav-links a {
-    padding: 4px 10px;
+    padding: 4px 8px;
     font-size: 13px;
   }
 }
