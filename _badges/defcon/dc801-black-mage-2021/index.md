@@ -2,6 +2,7 @@
 layout: badge
 title: "Black Mage"
 slug: dc801-black-mage-2021
+badge_id: "00D"
 year: 2021
 con: defcon
 event: "DEF CON 29"
@@ -34,7 +35,7 @@ source_repo: "https://github.com/DC801/BM-Badge"
 sold_at: 
   - vendor: "DC801 Store"
     url: "https://dc801.store"
-purchase_url: "https://dc801.store"
+purchase_url: ""
 links: []
 images: 
   - filename: "d040696e-8d08-4529-99fa-77618c17e681.jpg"

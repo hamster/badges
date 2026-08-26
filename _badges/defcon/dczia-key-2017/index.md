@@ -2,6 +2,7 @@
 layout: badge
 title: "Key"
 slug: dczia-key-2017
+badge_id: "002"
 year: 2017
 con: defcon
 event: "DEF CON 25"
@@ -29,9 +30,12 @@ docs_url: "https://github.com/dczia/Defcon25-Badge"
 source_repo: "https://github.com/dczia/Defcon25-Badge"
 sold_at: []
 purchase_url: ""
+links: []
 images: 
   - filename: "badge-thumb-5.jpg"
     caption: ""
 videos: []
 status: stub
 ---
+
+

@@ -7,6 +7,9 @@ title: "Badge Name Here"
 # Directory slug — must match this directory name AND assets/badges/{con}/{slug}/
 slug: badge-slug-here
 
+# Unique 3-digit hex identifier printed on the physical badge (e.g. 001, A3F)
+badge_id: ""
+
 # Four-digit year the badge was made / first appeared
 year: 2025
 

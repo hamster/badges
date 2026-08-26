@@ -116,6 +116,7 @@
       'layout: badge\n' +
       'title: ' + qs(f.title || '') + '\n' +
       'slug: ' + (f.slug || '') + '\n' +
+      'badge_id: ' + qs(f.badge_id || '') + '\n' +
       'year: ' + (f.year || '') + '\n' +
       'con: ' + (f.con || '') + '\n' +
       'event: ' + qs(f.event || '') + '\n' +
@@ -247,6 +248,7 @@
   }
 
   function extractFrontmatterBlock(text) {
+    text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     var m = text.match(/^---\s*\n([\s\S]*?)\n---\s*\n/);
     return m ? m[1] : null;
   }
@@ -284,14 +286,35 @@
 
   var repoDir = null;
   var badgesDir = null;
+  var cachedHandle = null;
 
-  async function openRepo() {
-    var dir;
+  // IndexedDB helpers — File System handles can't go in localStorage, but IDB accepts them
+  function openHandleDB() {
+    return new Promise(function (resolve, reject) {
+      var req = indexedDB.open('badges-editor', 1);
+      req.onupgradeneeded = function () { req.result.createObjectStore('handles'); };
+      req.onsuccess = function () { resolve(req.result); };
+      req.onerror = function () { reject(req.error); };
+    });
+  }
+  async function saveRepoHandle(handle) {
+    try { var db = await openHandleDB(); db.transaction('handles', 'readwrite').objectStore('handles').put(handle, 'repoDir'); } catch (e) {}
+  }
+  async function loadRepoHandle() {
     try {
-      dir = await window.showDirectoryPicker({ mode: 'readwrite' });
-    } catch (e) {
-      return false; // user cancelled
-    }
+      var db = await openHandleDB();
+      return await new Promise(function (resolve, reject) {
+        var req = db.transaction('handles', 'readonly').objectStore('handles').get('repoDir');
+        req.onsuccess = function () { resolve(req.result || null); };
+        req.onerror = function () { reject(req.error); };
+      });
+    } catch (e) { return null; }
+  }
+  async function clearRepoHandle() {
+    try { var db = await openHandleDB(); db.transaction('handles', 'readwrite').objectStore('handles').delete('repoDir'); } catch (e) {}
+  }
+
+  async function activateRepo(dir) {
     var bd;
     try {
       bd = await dir.getDirectoryHandle('_badges');
@@ -302,6 +325,16 @@
     repoDir = dir;
     badgesDir = bd;
     return true;
+  }
+
+  async function openRepo() {
+    var dir;
+    try {
+      dir = await window.showDirectoryPicker({ mode: 'readwrite' });
+    } catch (e) {
+      return false; // user cancelled
+    }
+    return activateRepo(dir);
   }
 
   async function fsWrite(dirHandle, filename, content) {
@@ -365,6 +398,7 @@
             group: data.group || '',
             makers: asList(data.makers),
             status: data.status || '',
+            badge_id: (data.badge_id || '').toUpperCase(),
             thumbnailFile: thumb ? thumb.filename : null,
             slugHandle: slugEntry,
           });
@@ -446,7 +480,7 @@
     }
     var indexHandle = await slugHandle.getFileHandle('index.md');
     var file = await indexHandle.getFile();
-    var text = await file.text();
+    var text = (await file.text()).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
     var fmText = extractFrontmatterBlock(text) || '';
     var data = parseFrontmatter(fmText);
@@ -465,6 +499,7 @@
     return {
       title: data.title || '',
       slug: slug,
+      badge_id: (data.badge_id || '').toUpperCase(),
       con: con,
       year: data.year || '',
       event: data.event || '',
@@ -612,6 +647,45 @@
   // Repo picker
   // -------------------------------------------------------------------------
 
+  function showReconnectBtn() {
+    if (!cachedHandle) return;
+    var rb = document.getElementById('reconnect-btn');
+    rb.textContent = 'Reopen ' + cachedHandle.name + '…';
+    rb.hidden = false;
+    rb.disabled = false;
+    var ob = document.getElementById('open-repo-btn');
+    ob.classList.remove('btn-primary');
+    ob.classList.add('btn-secondary');
+  }
+
+  document.getElementById('reconnect-btn').addEventListener('click', async function () {
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = 'Opening…';
+    try {
+      var perm = await cachedHandle.requestPermission({ mode: 'readwrite' });
+      if (perm !== 'granted') {
+        await clearRepoHandle(); cachedHandle = null;
+        btn.hidden = true;
+        var ob = document.getElementById('open-repo-btn');
+        ob.classList.remove('btn-secondary'); ob.classList.add('btn-primary');
+        return;
+      }
+      var ok = await activateRepo(cachedHandle);
+      if (ok) {
+        document.getElementById('repo-picker').hidden = true;
+        document.getElementById('admin-ui').hidden = false;
+        await initAdminUi();
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Reopen ' + cachedHandle.name + '…';
+      }
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = 'Reopen ' + cachedHandle.name + '…';
+    }
+  });
+
   document.getElementById('open-repo-btn').addEventListener('click', async function () {
     var btn = this;
     btn.disabled = true;
@@ -619,6 +693,8 @@
     try {
       var ok = await openRepo();
       if (ok) {
+        cachedHandle = repoDir;
+        await saveRepoHandle(repoDir);
         document.getElementById('repo-picker').hidden = true;
         document.getElementById('admin-ui').hidden = false;
         await initAdminUi();
@@ -640,6 +716,7 @@
     document.getElementById('repo-picker').hidden = false;
     document.getElementById('open-repo-btn').disabled = false;
     document.getElementById('open-repo-btn').textContent = 'Open repo…';
+    showReconnectBtn();
   });
 
   async function initAdminUi() {
@@ -658,6 +735,8 @@
     wireStaticControls();
     scheduleFieldsChanged();
     setStatus('', false);
+    // Pre-load badge list so badge_id suggestions work immediately
+    listBadges().then(function (data) { allBadgesList = data; setVal('f-badge-id', suggestNextBadgeId()); });
 
     // Auto-load badge when arriving via "Edit this badge…" link from a badge detail page
     var params = new URLSearchParams(window.location.search);
@@ -1079,6 +1158,7 @@
       docs_url: val('f-docs-url'), source_repo: val('f-source-repo'),
       sold_at: collectSoldAt(), purchase_url: val('f-purchase-url'),
       links: collectLinks(),
+      badge_id: val('f-badge-id').toUpperCase().replace(/[^0-9A-F]/g, ''),
       slug: val('f-slug'), status: val('f-status'), notes: val('f-notes'),
       images: images.map(function (img) {
         return { fileObject: img.fileObject || null, originalFilename: img.originalFilename || null, filename: img.filename, caption: img.caption, highlight: !!img.highlight };
@@ -1319,6 +1399,15 @@
     list.forEach(function (b) {
       var row = document.createElement('div'); row.className = 'browse-row';
       var thumb = document.createElement('div'); thumb.className = 'browse-thumb'; thumb.textContent = '—';
+      if (b.thumbnailFile && b.slugHandle) {
+        b.slugHandle.getFileHandle(b.thumbnailFile).then(function (fh) { return fh.getFile(); }).then(function (f) {
+          var img = document.createElement('img');
+          img.src = URL.createObjectURL(f);
+          img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:3px';
+          thumb.textContent = '';
+          thumb.appendChild(img);
+        }).catch(function () {});
+      }
       var info = document.createElement('div'); info.className = 'browse-info';
       info.innerHTML = '<div class="browse-title">' + esc(b.title) + '</div><div class="browse-meta text-muted">' + esc(b.con) + ' &middot; ' + esc(b.year) + ' &middot; ' + esc(b.type) + ' &middot; ' + esc(b.status) + '</div>';
       var actions = document.createElement('div'); actions.className = 'browse-actions';
@@ -1335,7 +1424,7 @@
   async function loadBadge(con, slug, slugHandle, mode) {
     var data;
     try {
-      data = await getBadgeFields(con, slug);
+      data = await getBadgeFields(con, slug, slugHandle);
     } catch (e) {
       setStatus('Failed to load badge: ' + e.message, true);
       return;
@@ -1393,6 +1482,8 @@
     renderVideoList();
     editingBadge = null; slugTouched = false; dirty = false;
     document.getElementById('save-result').hidden = true;
+    document.getElementById('badge-id-warn').hidden = true;
+    setVal('f-badge-id', suggestNextBadgeId());
     setStatus('', false);
     updateEditingBanner();
     scheduleFieldsChanged();
@@ -1403,6 +1494,7 @@
     var title = data.title || '';
     if (mode === 'duplicate' && title && !/ COPY$/.test(title)) title += ' COPY';
     setVal('f-title', title);
+    setVal('f-badge-id', (mode === 'duplicate' || !data.badge_id) ? suggestNextBadgeId() : data.badge_id);
     setVal('f-year', data.year);
     setSelectValue('f-con', data.con);
     setSelectValue('f-badge_type', data.badge_type);
@@ -1470,6 +1562,33 @@
   }
 
   // -------------------------------------------------------------------------
+  // Badge ID helpers
+  // -------------------------------------------------------------------------
+
+  function suggestNextBadgeId() {
+    var max = -1;
+    allBadgesList.forEach(function (b) {
+      if (b.badge_id) {
+        var n = parseInt(b.badge_id, 16);
+        if (!isNaN(n) && n > max) max = n;
+      }
+    });
+    return (max + 1).toString(16).toUpperCase().padStart(3, '0');
+  }
+
+  function validateBadgeId() {
+    var id = val('f-badge-id').toUpperCase();
+    var warn = document.getElementById('badge-id-warn');
+    if (!id) { warn.hidden = true; return; }
+    var dupe = allBadgesList.some(function (b) {
+      return b.badge_id && b.badge_id === id &&
+             !(editingBadge && editingBadge.con === b.con && editingBadge.slug === b.slug);
+    });
+    warn.textContent = dupe ? 'Already used by another badge' : '';
+    warn.hidden = !dupe;
+  }
+
+  // -------------------------------------------------------------------------
   // Wiring
   // -------------------------------------------------------------------------
 
@@ -1477,6 +1596,17 @@
     form.addEventListener('input', function () { markDirty(); scheduleFieldsChanged(); });
     form.addEventListener('change', function () { markDirty(); scheduleFieldsChanged(); });
     document.getElementById('f-slug').addEventListener('input', function () { slugTouched = true; });
+
+    var badgeIdInput = document.getElementById('f-badge-id');
+    badgeIdInput.addEventListener('input', function () {
+      this.value = this.value.toUpperCase().replace(/[^0-9A-F]/g, '');
+      validateBadgeId();
+    });
+    document.getElementById('badge-id-suggest-btn').addEventListener('click', function () {
+      badgeIdInput.value = suggestNextBadgeId();
+      validateBadgeId();
+      markDirty();
+    });
     document.getElementById('browse-btn').addEventListener('click', openBrowsePanel);
     document.getElementById('browse-close').addEventListener('click', closeBrowsePanel);
     document.getElementById('browse-overlay').addEventListener('click', function (e) { if (e.target.id === 'browse-overlay') closeBrowsePanel(); });
@@ -1505,6 +1635,7 @@
       var btn = document.getElementById('save-btn');
       btn.disabled = true;
       setStatus('Saving…', false);
+      if (!val('f-badge-id')) setVal('f-badge-id', suggestNextBadgeId());
       var fields = collectFields();
       try {
         var result = await saveBadge(fields);
@@ -1529,6 +1660,16 @@
   if (!window.showDirectoryPicker) {
     document.getElementById('not-supported-banner').hidden = false;
     document.getElementById('open-repo-btn').disabled = true;
+  } else {
+    // Restore cached repo handle from previous session
+    loadRepoHandle().then(async function (handle) {
+      if (!handle) return;
+      var perm;
+      try { perm = await handle.queryPermission({ mode: 'readwrite' }); } catch (e) { return; }
+      if (perm === 'denied') { await clearRepoHandle(); return; }
+      cachedHandle = handle;
+      showReconnectBtn();
+    });
   }
 
 })();

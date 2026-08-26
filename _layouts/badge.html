@@ -158,7 +158,7 @@ layout: default
   </div>
 
   <div class="badge-specs">
-    <div class="specs-header">Specifications</div>
+    <div class="specs-header">Specifications{% if page.badge_id and page.badge_id != '' %}<span class="badge-id-chip">#{{ page.badge_id }}</span>{% else %}<span class="badge-id-chip badge-id-chip--missing">???</span>{% endif %}</div>
 
     {% comment %} Maker(s): prefer new list, fall back to legacy single string {% endcomment %}
     {% if page.makers and page.makers.size > 0 %}

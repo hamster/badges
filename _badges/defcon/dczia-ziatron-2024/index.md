@@ -2,6 +2,7 @@
 layout: badge
 title: "Ziatron"
 slug: dczia-ziatron-2024
+badge_id: "009"
 year: 2024
 con: defcon
 event: "DEF CON 32"
@@ -35,6 +36,7 @@ sold_at:
   - vendor: "Tindie"
     url: "https://www.tindie.com/products/hamster/2024-dczia-badge-the-ziatron/"
 purchase_url: ""
+links: []
 images: 
   - filename: "img20260825012528.jpg"
     caption: ""

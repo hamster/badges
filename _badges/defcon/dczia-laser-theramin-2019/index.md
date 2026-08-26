@@ -2,6 +2,7 @@
 layout: badge
 title: "Laser Theramin"
 slug: dczia-laser-theramin-2019
+badge_id: "004"
 year: 2019
 con: defcon
 event: "DEF CON 27"
@@ -24,7 +25,7 @@ sao_ports:
 interface: micro-USB
 programming: USB-DFU
 connectivity: [bluetooth]
-features: ["audio", "buttons", "kit", "neopixel", "speaker"]
+features: ["speaker", "buttons", "audio", "kit", "neopixel"]
 rarity: "small-run"
 acquisition:
   date: "2019-08-09"
@@ -33,9 +34,12 @@ docs_url: "https://github.com/dczia/Defcon27-Badge"
 source_repo: "https://github.com/dczia/Defcon27-Badge"
 sold_at: []
 purchase_url: ""
+links: []
 images: 
   - filename: "badge-thumb-1.jpg"
     caption: ""
 videos: []
 status: stub
 ---
+
+

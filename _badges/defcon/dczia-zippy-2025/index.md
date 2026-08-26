@@ -2,6 +2,7 @@
 layout: badge
 title: "Zippy"
 slug: dczia-zippy-2025
+badge_id: "00A"
 year: 2025
 con: defcon
 event: "DEF CON 33"
@@ -24,7 +25,7 @@ sao_ports:
 interface: USB-C
 programming: USB-DFU
 connectivity: []
-features: ["accelerometer", "joystick", "microphone", "neopixel"]
+features: ["joystick", "accelerometer", "microphone", "neopixel"]
 rarity: "small-run"
 acquisition:
   date: "2025-08-01"
@@ -35,6 +36,7 @@ sold_at:
   - vendor: "Tindie"
     url: "https://www.tindie.com/products/hamster/2025-dczia-badge-zippy/"
 purchase_url: ""
+links: []
 images: 
   - filename: "img20260824212855.jpg"
     caption: ""

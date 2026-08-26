@@ -2,6 +2,7 @@
 layout: badge
 title: "Hal9000"
 slug: dczia-hal9000-2022
+badge_id: "00B"
 year: 2022
 con: Ziacon
 event: "ZiaCon 3"
@@ -29,6 +30,7 @@ docs_url: "https://github.com/lithochasm/ZiaCon3-Badge"
 source_repo: "https://github.com/lithochasm/ZiaCon3-Badge"
 sold_at: []
 purchase_url: ""
+links: []
 images: 
   - filename: "hal9000.jpg"
     caption: ""

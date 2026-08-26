@@ -2,6 +2,7 @@
 layout: badge
 title: "Mk9"
 slug: dczia-mk9-2026
+badge_id: "005"
 year: 2026
 con: defcon
 event: "DEF CON 34"
@@ -24,7 +25,7 @@ sao_ports:
 interface: USB-C
 programming: USB-DFU
 connectivity: []
-features: ["accelerometer", "buttons", "neopixel"]
+features: ["buttons", "accelerometer", "neopixel"]
 rarity: "small-run"
 acquisition:
   date: "2026-08-01"
@@ -49,9 +50,6 @@ images:
   - filename: "img20260825012037.jpg"
     caption: ""
   - filename: "img20260825011844.jpg"
-    caption: ""
-videos: 
-  - filename: "vid20260825012231.mp4"
     caption: ""
 videos: []
 status: stub

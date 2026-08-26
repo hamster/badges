@@ -2,6 +2,7 @@
 layout: badge
 title: "YoloBadge"
 slug: dczia-yolobadge-2021
+badge_id: "00C"
 year: 2021
 con: Ziacon
 event: "DEF CON 30"
@@ -33,6 +34,7 @@ docs_url: "https://github.com/dczia/yolobadge"
 source_repo: "https://github.com/dczia/yolobadge"
 sold_at: []
 purchase_url: ""
+links: []
 images: 
   - filename: "yolobadge-thumb.jpg"
     caption: ""

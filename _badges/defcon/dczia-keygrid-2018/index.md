@@ -2,6 +2,7 @@
 layout: badge
 title: "KeyGrid"
 slug: dczia-keygrid-2018
+badge_id: "003"
 year: 2018
 con: defcon
 event: "DEF CON 26"
@@ -37,9 +38,12 @@ docs_url: "https://github.com/dczia/Defcon26-Badge"
 source_repo: "https://github.com/dczia/Defcon26-Badge"
 sold_at: []
 purchase_url: ""
+links: []
 images: 
   - filename: "badge-thumb-4.jpg"
     caption: ""
 videos: []
 status: stub
 ---
+
+

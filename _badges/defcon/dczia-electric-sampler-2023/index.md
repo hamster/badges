@@ -2,6 +2,7 @@
 layout: badge
 title: "Electric Sampler"
 slug: dczia-electric-sampler-2023
+badge_id: "001"
 year: 2023
 con: defcon
 event: "DEF CON 31"
@@ -24,7 +25,7 @@ sao_ports:
 interface: USB-C
 programming: USB-DFU
 connectivity: [wifi, bluetooth]
-features: ["audio", "buttons", "eurorack", "neopixel", "rotary encoder", "speaker"]
+features: ["speaker", "buttons", "audio", "eurorack", "neopixel", "rotary encoder"]
 rarity: "small-run"
 acquisition:
   date: "2023-08-01"
@@ -35,10 +36,12 @@ sold_at:
   - vendor: "Tindie"
     url: "https://www.tindie.com/products/hamster/dczia-electric-sampler/"
 purchase_url: ""
+links: []
 images: 
   - filename: "dczia2023.jpg"
     caption: ""
 videos: []
 status: stub
 ---
+
 

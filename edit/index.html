@@ -11,6 +11,7 @@ permalink: /edit/
   <div class="repo-picker-inner">
     <h2 class="text-accent font-mono">Badge Add/Edit</h2>
     <p>Open your local clone of this repo to add or edit badges directly from the browser. Files are written straight to disk - nothing is committed or pushed automatically.</p>
+    <button type="button" id="reconnect-btn" class="btn-primary" hidden></button>
     <button type="button" id="open-repo-btn" class="btn-primary">Open repo…</button>
     <p class="text-muted hint-note">Requires Chrome or Edge (File System Access API). Firefox is not supported.</p>
     <ol class="repo-help">
@@ -57,6 +58,11 @@ permalink: /edit/
           <label class="field field-narrow">
             <span>Year <span class="req">*</span></span>
             <input type="number" id="f-year" required>
+          </label>
+          <label class="field field-xnarrow">
+            <span>Badge ID <span class="hint">hex · <button type="button" id="badge-id-suggest-btn" class="field-link-btn">suggest</button></span></span>
+            <input type="text" id="f-badge-id" maxlength="3" placeholder="e.g. 00A" spellcheck="false" style="font-family:var(--font-mono);letter-spacing:0.1em;text-transform:uppercase">
+            <span id="badge-id-warn" class="field-warn" hidden></span>
           </label>
         </div>
         <div class="field-row">

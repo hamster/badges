@@ -2,6 +2,7 @@
 layout: badge
 title: "Pi MkII"
 slug: dczia-pi-mkii-2016
+badge_id: "007"
 year: 2016
 con: defcon
 event: "DEF CON 23"
@@ -29,6 +30,7 @@ docs_url: "https://github.com/lithochasm/PiBadge24"
 source_repo: "https://github.com/lithochasm/PiBadge24"
 sold_at: []
 purchase_url: ""
+links: []
 images: 
   - filename: "badge-thumb-6.jpg"
     caption: ""
@@ -36,4 +38,4 @@ videos: []
 status: stub
 ---
 
-A badge thought up, designed, and made in ~4 hours duing a live talk at ZiaCon 2, April 2021
+

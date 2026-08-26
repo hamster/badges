@@ -3,9 +3,6 @@
 ## Open
 
 - [ ] 360 rotating-platform videos - explore whether looping stitched video is feasible without heavy tooling (low priority)
-- [ ] Editor enumerator fails if line endings are not \n
-- [ ] Add a three digit hex unique identifier
-- [ ] Cache the repo dir so the user does not need to re-select if they navigate away from the editor
 
 ## Done
 
@@ -19,4 +16,7 @@
 - [x] Clickable tags on badge detail pages (type, con, year, group/maker, edition, status) link to home page with filter pre-applied
 - [x] Clickable tags on grid cards (type, con, year, group/maker, MCU) filter in-place without navigating away
 - [x] Edit page help text shown inline (no flyout)
+- [x] Editor fails to parse badge files with CRLF line endings - normalize `\r\n` → `\n` on file read
+- [x] Cache repo dir handle in IndexedDB so returning users get one-click "Reopen" instead of directory picker
+- [x] Add a three digit hex unique identifier per physical badge (badge_id field, shown on cards and detail pages)
 

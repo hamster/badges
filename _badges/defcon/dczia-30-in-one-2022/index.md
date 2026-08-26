@@ -2,6 +2,7 @@
 layout: badge
 title: "30-in-One"
 slug: dczia-30-in-one-2022
+badge_id: "000"
 year: 2022
 con: defcon
 event: "DEF CON 30"

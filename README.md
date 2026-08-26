@@ -62,6 +62,8 @@ TODO.md             Pending work
 
 Open `https://hamster.github.io/badges/edit/` (or `http://localhost:4000/badges/edit/` during local dev) in Chrome or Edge, click **Open repo…**, and select your local clone of this repo. The editor writes badge files and photos straight to disk - nothing is committed or pushed automatically. Fill in the form, drag in photos, hit **Save badge to disk**, then `git add` / `git commit` / push as normal.
 
+The editor remembers your repo folder between sessions (IndexedDB). On your next visit a **Reopen [folder]…** button appears - one click re-grants access without navigating the directory picker again.
+
 ### Option B - copy the template manually
 
 ```bash
@@ -105,6 +107,7 @@ Fields are all optional except `title`, `slug`, `year`, `con`, and `type`. The l
 |---|---|---|
 | `title` | string | Display name of the badge |
 | `slug` | string | Directory name - must match `_badges/{con}/{slug}/`. Default: `{group-or-creator}-{title}-{year}` |
+| `badge_id` | string | Unique 3-digit hex identifier (e.g. `001`, `A3F`) printed on the physical badge for identification |
 | `year` | integer | Year the badge was made / first appeared |
 | `con` | string | `defcon` \| `saintcon` \| `dc503` \| `queercon` \| `layerone` \| `toorcon` \| `other` |
 | `event` | string | Human-readable event name, e.g. `"DEF CON 32"` |

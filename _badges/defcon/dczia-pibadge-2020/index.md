@@ -2,6 +2,7 @@
 layout: badge
 title: "PiBadge"
 slug: dczia-pibadge-2020
+badge_id: "008"
 year: 2020
 con: defcon
 event: "DEF CON 28"
@@ -29,9 +30,12 @@ docs_url: "https://github.com/dczia/Defcon28-Badge"
 source_repo: "https://github.com/dczia/Defcon28-Badge"
 sold_at: []
 purchase_url: ""
+links: []
 images: 
   - filename: "badge-thumb-11.jpg"
     caption: ""
 videos: []
 status: stub
 ---
+
+

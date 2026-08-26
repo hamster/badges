@@ -250,7 +250,7 @@ main { padding: 40px 0 80px; }
   gap: 6px;
 }
 
-.badge-card-title { font-size: 15px; font-weight: 600; line-height: 1.3; }
+.badge-card-title { font-size: 15px; font-weight: 600; line-height: 1.3; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .badge-card-meta { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
 
 .badge-tags {
@@ -294,6 +294,23 @@ a.tag:hover { opacity: 0.75; }
 .badge-card-meta .card-facet-link:hover { text-decoration: underline; }
 .badge-tags .card-facet-link { cursor: pointer; }
 .badge-tags .card-facet-link:hover { opacity: 0.75; }
+
+/* ===== Badge ID chip — card overlay and detail tag ===== */
+.badge-card-image { position: relative; }
+.badge-card-image-placeholder { position: relative; }
+.badge-id-chip {
+  font-family: var(--font-mono);
+  font-size: 20px; font-weight: 700;
+  background: var(--surface-2);
+  color: var(--accent);
+  padding: 4px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  flex-shrink: 0;
+  user-select: none;
+}
+.badge-id-chip--missing { color: #f87171; }
 
 /* ===== Badge detail ===== */
 .badge-detail-header { margin-bottom: 32px; }
@@ -414,6 +431,9 @@ a.tag:hover { opacity: 0.75; }
   font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.1em;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   color: var(--text-muted);
 }
 

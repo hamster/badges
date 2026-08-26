@@ -36,7 +36,7 @@
 
 {% comment %} Build searchable text for JS filtering {% endcomment %}
 {% assign makers_str = b.makers | join: ' ' %}
-{% assign search_text = b.title | append: ' ' | append: makers_str | append: ' ' | append: b.group | append: ' ' | append: b.maker | downcase %}
+{% assign search_text = b.title | append: ' ' | append: makers_str | append: ' ' | append: b.group | append: ' ' | append: b.maker | append: ' ' | append: b.badge_id | downcase %}
 
 {% comment %} Resolve creator separately from the group-preferred display credit above {% endcomment %}
 {% if b.makers and b.makers.size > 0 %}
@@ -152,7 +152,10 @@
     <div class="badge-card-image-placeholder">[ no photo ]</div>
   {% endif %}
   <div class="badge-card-body">
-    <div class="badge-card-title">{{ b.title }}</div>
+    <div class="badge-card-title">
+      <span>{{ b.title }}</span>
+      {% if b.badge_id and b.badge_id != '' %}<div class="badge-id-chip">#{{ b.badge_id }}</div>{% else %}<div class="badge-id-chip badge-id-chip--missing">???</div>{% endif %}
+    </div>
     <div class="badge-card-meta">
       {% if credit_filter_value != '' %}<span class="card-facet-link" data-filter-facet="{{ credit_filter_facet }}" data-filter-value="{{ credit_filter_value | escape }}">{{ display_credit }}</span>{% else %}{{ display_credit }}{% endif %}
       &middot;
