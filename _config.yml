@@ -16,6 +16,9 @@ defaults:
     values:
       layout: badge
 
+# Use the WebP thumbnails/medium copies made at publish time (production builds only)
+media_variants: true
+
 plugins:
   - jekyll-feed
   - jekyll-seo-tag
@@ -27,3 +30,6 @@ exclude:
   - README.md
   - TODO.md
   - vendor/
+  - apps/badge-turntable/
+  - apps/encoder-ring/package.json
+  - apps/encoder-ring/make-ring.mjs

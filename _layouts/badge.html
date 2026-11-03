@@ -70,19 +70,28 @@ layout: default
 
     <div class="badge-gallery">
       {% if page.images and page.images.size > 0 %}
+        {% capture main_src %}{% include media-url.html base=img_base file=main_image.filename variant='medium' %}{% endcapture %}
+        {% capture main_full %}{% include media-url.html base=img_base file=main_image.filename %}{% endcapture %}
         <div class="gallery-main" id="gallery-main">
-          <img src="{{ img_base | append: main_image.filename | relative_url }}"
-               alt="{{ main_image.caption | default: page.title }}"
-               id="gallery-main-img">
+          <a href="{{ main_full }}" id="gallery-main-link" target="_blank" rel="noopener" title="Open full size">
+            <img src="{{ main_src }}"
+                 alt="{{ main_image.caption | default: page.title }}"
+                 id="gallery-main-img" data-full="{{ main_full }}">
+          </a>
         </div>
         {% if page.images.size > 1 %}
           <div class="gallery-thumbs">
             {% for image in page.images %}
+              {% capture strip_src %}{% include media-url.html base=img_base file=image.filename variant='thumbs' %}{% endcapture %}
+              {% capture strip_medium %}{% include media-url.html base=img_base file=image.filename variant='medium' %}{% endcapture %}
+              {% capture strip_full %}{% include media-url.html base=img_base file=image.filename %}{% endcapture %}
               <div class="gallery-thumb{% if image.filename == main_image.filename %} active{% endif %}"
-                   data-src="{{ img_base | append: image.filename | relative_url }}"
+                   data-src="{{ strip_medium }}"
+                   data-full="{{ strip_full }}"
                    data-alt="{{ image.caption | default: page.title | escape }}">
-                <img src="{{ img_base | append: image.filename | relative_url }}"
-                     alt="{{ image.caption | default: page.title }}">
+                <img src="{{ strip_src }}" loading="lazy"
+                     alt="{{ image.caption | default: page.title }}"{% if strip_src != strip_full %}
+                     onerror="this.onerror=null;this.src='{{ strip_full }}'"{% endif %}>
               </div>
             {% endfor %}
           </div>
@@ -384,10 +393,21 @@ layout: default
 </div>
 
 <script>
+var mainImg = document.getElementById('gallery-main-img');
+if (mainImg) {
+  // If a publish-time medium copy is missing, fall back to the original.
+  mainImg.addEventListener('error', function() {
+    if (mainImg.dataset.full && mainImg.src !== new URL(mainImg.dataset.full, location.href).href) {
+      mainImg.src = mainImg.dataset.full;
+    }
+  });
+}
 document.querySelectorAll('.gallery-thumb').forEach(function(thumb) {
   thumb.addEventListener('click', function() {
-    document.getElementById('gallery-main-img').src = this.dataset.src;
-    document.getElementById('gallery-main-img').alt = this.dataset.alt;
+    mainImg.dataset.full = this.dataset.full;
+    mainImg.src = this.dataset.src;
+    mainImg.alt = this.dataset.alt;
+    document.getElementById('gallery-main-link').href = this.dataset.full;
     document.querySelectorAll('.gallery-thumb').forEach(function(t) { t.classList.remove('active'); });
     this.classList.add('active');
   });

@@ -5,7 +5,9 @@
   {% comment %} A highlighted image (set in badge_gui) wins over plain list order {% endcomment %}
   {% assign highlighted_img = b.images | where: "highlight", true | first %}
   {% assign thumb_img = highlighted_img | default: b.images.first %}
-  {% assign thumb_url = '/' | append: b.con | append: '/' | append: b.slug | append: '/' | append: thumb_img.filename | relative_url %}
+  {% assign card_base = '/' | append: b.con | append: '/' | append: b.slug | append: '/' %}
+  {% capture thumb_url %}{% include media-url.html base=card_base file=thumb_img.filename variant='thumbs' %}{% endcapture %}
+  {% capture full_url %}{% include media-url.html base=card_base file=thumb_img.filename %}{% endcapture %}
 {% endif %}
 
 {% comment %} Resolve display credit: group > makers list > legacy maker string {% endcomment %}
@@ -146,7 +148,7 @@
    data-acq-source="{{ b.acquisition.source | escape }}">
   {% if has_image %}
     <div class="badge-card-image">
-      <img src="{{ thumb_url }}" alt="{{ b.title }}" loading="lazy">
+      <img src="{{ thumb_url }}" alt="{{ b.title }}" loading="lazy"{% if thumb_url != full_url %} onerror="this.onerror=null;this.src='{{ full_url }}'"{% endif %}>
     </div>
   {% else %}
     <div class="badge-card-image-placeholder">[ no photo ]</div>

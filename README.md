@@ -181,6 +181,14 @@ Use kebab-case. Order in the `images:` list determines gallery order; the `highl
 
 Short clips go in `videos:` using the same `{filename, caption, highlight}` shape, files in the same `_badges/{con}/{slug}/` directory. They render as muted, looping, autoplaying `<video>` elements. Use MP4 for best browser compatibility.
 
+### What happens at publish
+
+The Pages workflow shrinks media in the built site only. Files in the repo are untouched:
+- **Photos:** each one gets WebP copies at 640 px (grid cards, gallery strip) and 1600 px (gallery main image). The originals stay linked from the gallery.
+- **Videos:** any video over 10 MB, or recorded in HDR, is re-encoded to H.264 (at most 1080 px wide, 24 fps, no audio, under 10 MB, standard colour).
+
+Local `jekyll serve` shows the originals. The script is [.github/scripts/optimize_media.py](.github/scripts/optimize_media.py). To shrink a big video in the repo itself before committing, run `python .github/scripts/optimize_media.py --root _badges --no-images` (needs ffmpeg).
+
 ---
 
 ## Badge status workflow

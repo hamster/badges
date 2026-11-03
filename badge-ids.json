@@ -1,0 +1,14 @@
+---
+layout: null
+permalink: /badge-ids.json
+---
+{%- comment -%}
+  Every badge_id in use, for the Badge Turntable app to suggest a new ID that
+  doesn't collide (apps/Spec.md, "Badge ID").
+{%- endcomment -%}
+{%- assign with_ids = site.badges | where_exp: "b", "b.badge_id != nil and b.badge_id != ''" -%}
+[
+{%- for b in with_ids %}
+  {"badge_id": {{ b.badge_id | jsonify }}, "slug": {{ b.slug | jsonify }}, "con": {{ b.con | jsonify }}}{% unless forloop.last %},{% endunless %}
+{%- endfor %}
+]

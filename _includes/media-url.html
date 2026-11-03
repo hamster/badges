@@ -1,0 +1,20 @@
+{%- comment -%}
+  URL of a badge image, or of a smaller WebP copy of it made at publish time
+  by .github/scripts/optimize_media.py:
+    include.base     the badge's folder ('/con/slug/')
+    include.file     the image filename
+    include.variant  'thumbs' (640 px) or 'medium' (1600 px); omit for the original
+                     (not 'size': Liquid reads include.size as the parameter count)
+  Copies only exist in production builds, so other builds get the original.
+{%- endcomment -%}
+{%- assign _ext = include.file | split: '.' | last | downcase -%}
+{%- assign _variant = false -%}
+{%- if include.variant and site.media_variants and jekyll.environment == 'production' and include.file contains '.' -%}
+  {%- if _ext == 'jpg' or _ext == 'jpeg' or _ext == 'png' or _ext == 'webp' -%}{%- assign _variant = true -%}{%- endif -%}
+{%- endif -%}
+{%- if _variant -%}
+  {%- assign _stem = include.file | split: '.' | pop | join: '.' -%}
+  {{- include.base | append: include.variant | append: '/' | append: _stem | append: '.webp' | relative_url -}}
+{%- else -%}
+  {{- include.base | append: include.file | relative_url -}}
+{%- endif -%}

@@ -28,10 +28,25 @@ jobs:
       - uses: actions/configure-pages@v5
         id: pages
 
+      - name: Install media tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends ffmpeg python3-pil
+
+      # Thumbnails and re-encoded videos, keyed on the media so unchanged files are reused
+      - uses: actions/cache@v4
+        with:
+          path: .media-cache
+          key: media-${{ hashFiles('_badges/**/*.jpg', '_badges/**/*.JPG', '_badges/**/*.jpeg', '_badges/**/*.png', '_badges/**/*.webp', '_badges/**/*.mp4', '_badges/**/*.mov', '_badges/**/*.m4v') }}
+          restore-keys: media-
+
       - name: Build with Jekyll
         run: bundle exec jekyll build --baseurl "${{ steps.pages.outputs.base_path }}"
         env:
           JEKYLL_ENV: production
+
+      - name: Optimize media
+        run: python3 .github/scripts/optimize_media.py --root _site --cache .media-cache
 
       - uses: actions/upload-pages-artifact@v3
 
