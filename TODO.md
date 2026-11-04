@@ -3,10 +3,14 @@
 ## Open
 
 - [ ] 360 rotating-platform videos - explore whether looping stitched video is feasible without heavy tooling (low priority). The Badge Turntable app trims spins to exactly one revolution using the encoder ring (apps/Spec.md)
-- [ ] Badge Turntable Android app - first draft in apps/badge-turntable/, needs building and testing in Android Studio
+- [ ] Badge Turntable Android app - first draft in apps/badge-turntable/, needs building and testing in Android Studio (start with "Start here" in its README)
+- [ ] Remote control of the turntable app from the web editor (Turntable panel in /edit/, server on the phone) - designed in apps/Spec.md, starts with a spike
 
 ## Done
 
+- [x] JAYEGT turntable remote codes captured and every button's behaviour mapped (apps/ir-tools/, bundled as the app's jayegt-5.74.ir)
+- [x] Encoder ring printed and fitted on the JAYEGT: black band, 45 markers at 8 degrees, generated at 460.9 mm (apps/encoder-ring/)
+- [x] Perspective-corrected ring angle fit, checked against simulated camera images
 - [x] Publish-time WebP thumbnails (640 px) and gallery copies (1600 px); videos over 10 MB or in HDR re-encoded (.github/scripts/optimize_media.py)
 - [x] `badge-ids.json` listing every badge_id, for the capture app
 - [x] Encoder ring generator for the turntable (apps/encoder-ring/)
