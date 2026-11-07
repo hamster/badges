@@ -1680,6 +1680,7 @@
 
   window.BadgeEditor = {
     // items: [{ kind: 'image'|'video', file: File, filename, caption, highlight, tt }]
+    // `tt` is turntable.js's record of where the file came from on the phone.
     // An item whose filename is already in the list replaces that entry in place
     // (a re-shoot); others are appended. `highlight` is applied only when nothing
     // else is highlighted, so an edited badge keeps its chosen hero image.
@@ -1703,6 +1704,16 @@
         if (it.highlight && !anyHighlight) entry.highlight = true;
       });
       markDirty(); renderImageList(); renderVideoList(); scheduleFieldsChanged();
+    },
+    // Start a new badge with these fields ({title, notes}), after asking before
+    // throwing away unsaved changes. Returns false if the user said no.
+    startNew: function (fields) {
+      if (dirty && !confirm('Discard the unsaved changes to this badge and start a new one?')) return false;
+      resetForm();
+      setVal('f-title', fields.title);
+      setVal('f-notes', fields.notes);
+      markDirty(); scheduleFieldsChanged();
+      return true;
     },
     getMedia: function () { return { images: images.slice(), videos: videos.slice() }; },
     isRepoOpen: function () { return !!repoDir; },

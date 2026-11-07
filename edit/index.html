@@ -65,7 +65,7 @@ permalink: /edit/
         </div>
         <div id="tt-device-list" class="tt-device-list"></div>
         <form id="tt-pair-form" class="tt-pair-form" hidden>
-          <div>Pair with <strong id="tt-pair-name"></strong>: type the 6-digit code shown on the phone's Capture screen.</div>
+          <div>Pair with <strong id="tt-pair-name"></strong>: type the 6-digit code shown in the phone's remote-control banner.</div>
           <div class="tt-row">
             <input type="text" id="tt-pair-code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123 456">
             <label class="tt-inline">This PC's name <input type="text" id="tt-client-name" maxlength="64"></label>
@@ -83,6 +83,10 @@ permalink: /edit/
               <canvas id="tt-preview" class="tt-preview" width="640" height="480" title="Click to focus on that spot"></canvas>
               <div id="tt-preview-msg" class="tt-preview-msg">Waiting for the preview…</div>
               <div id="tt-countdown" class="tt-countdown" hidden></div>
+              <div id="tt-cam-closed" class="tt-preview-msg tt-cam-closed" hidden>
+                <span>The phone isn't on its Camera screen.</span>
+                <button type="button" id="tt-open-camera" class="btn-primary tt-small">Open camera on phone</button>
+              </div>
             </div>
             <div class="tt-readout">
               <span id="tt-angle" class="tt-angle"></span>
@@ -102,13 +106,13 @@ permalink: /edit/
                 <button type="button" id="tt-calibrate" class="btn-secondary tt-small">Calibrate</button>
                 <button type="button" id="tt-step" class="btn-secondary tt-small">Step 90°</button>
                 <button type="button" id="tt-home" class="btn-secondary tt-small">Home</button>
-            <button type="button" id="tt-front" class="btn-secondary tt-small" title="Make where the table is now the front: captures start here, and with a calibration it's where Home returns to">Set front</button>
+                <button type="button" id="tt-front" class="btn-secondary tt-small" title="Make where the table is now the front: captures start here, and with a calibration it's where Home returns to">Set front</button>
                 <form id="tt-goto" class="tt-inline">
                   <input type="number" id="tt-goto-deg" min="0" max="359" step="1" value="0" title="Table angle">°
                   <button type="submit" class="btn-secondary tt-small">Go</button>
                 </form>
               </div>
-              <details class="tt-test">
+              <details id="tt-test" class="tt-test">
                 <summary>Test buttons</summary>
                 <div id="tt-roles" class="tt-row"></div>
               </details>
@@ -116,6 +120,7 @@ permalink: /edit/
 
             <section class="tt-box">
               <h4>Capture</h4>
+              <div id="tt-target" class="tt-target"></div>
               <div class="tt-row tt-set-choice">
                 <label class="tt-inline"><input type="radio" name="tt-set" id="tt-set-main" checked> Main views</label>
                 <label class="tt-inline"><input type="radio" name="tt-set" id="tt-set-extra"> Extra set:</label>
@@ -151,10 +156,12 @@ permalink: /edit/
         <section class="tt-shots">
           <div class="tt-shots-head">
             <span class="tt-label">On the phone</span>
+            <select id="tt-source" class="tt-source" title="The shots taken from here, or one of the badge sessions captured on the phone"></select>
             <span id="tt-shots-count" class="text-muted"></span>
             <button type="button" id="tt-add-all" class="btn-primary tt-small">Add all to badge</button>
             <button type="button" id="tt-clear-all" class="btn-secondary tt-small">Delete all on phone</button>
           </div>
+          <div id="tt-session-info" class="tt-session-info" hidden></div>
           <div id="tt-shot-list" class="tt-shot-list"></div>
         </section>
       </div>
@@ -168,6 +175,16 @@ permalink: /edit/
     <p id="tt-prompt-text"></p>
     <div id="tt-prompt-dial" class="tt-prompt-dial" hidden></div>
     <div id="tt-prompt-answers" class="tt-row"></div>
+  </dialog>
+
+  <dialog id="tt-join" class="tt-prompt">
+    <div class="tt-prompt-title">Where should captures go?</div>
+    <p id="tt-join-text"></p>
+    <div class="tt-row">
+      <button type="button" id="tt-join-yes" class="btn-primary"></button>
+      <button type="button" id="tt-join-new" class="btn-secondary">Start a new set</button>
+      <button type="button" id="tt-join-cancel" class="btn-secondary">Cancel</button>
+    </div>
   </dialog>
 
   <main class="admin-layout">
@@ -392,12 +409,8 @@ permalink: /edit/
       </div>
       <div id="tt-save-options" class="tt-save-options" hidden>
         <label class="field-check">
-          <input type="checkbox" id="tt-save-originals">
-          <span>Also save the turntable originals and <code>session.json</code> to <code>_capture/&lt;con&gt;/&lt;slug&gt;/</code> (not published or committed)</span>
-        </label>
-        <label class="field-check">
           <input type="checkbox" id="tt-clear-after" checked>
-          <span>Remove the saved shots from the phone afterwards</span>
+          <span>Remove from the phone afterwards: the shots that went into the badge, and a phone session once all of its files are in the badge</span>
         </label>
       </div>
     </form>

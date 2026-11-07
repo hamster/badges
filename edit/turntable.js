@@ -12,6 +12,7 @@
   var DEFAULT_PORT = 8737;
   var PROBE_TIMEOUT_MS = 1500;
   var STORE_KEY = 'badges-turntable';
+  var EDITOR_SOURCE = '';  // the tray's source for the shots taken from the editor (vs a phone session id)
   var ROLE_LABELS = {
     start_stop: 'On / pause', turn_left: 'Turn left', turn_right: 'Turn right', speed_up: 'Speed +', speed_down: 'Speed −',
     continuous_mode: 'Continuous', intermittent_mode: 'Intermittent', step_45: 'Step 45°', step_90: 'Step 90°',
@@ -34,7 +35,7 @@
     var s = {};
     try { s = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { s = {}; }
     return Object.assign({ devices: [], addresses: [], clientName: '', lastDeviceId: null, extraLabel: 'Lanyard',
-                           open: false, saveOriginals: false, clearAfter: true }, s);
+                           open: false, clearAfter: true, source: '' }, s);
   })();
   function saveStore() { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) { /* private mode */ } }
   function deviceById(id) { return store.devices.find(function (d) { return d.deviceId === id; }) || null; }
@@ -319,7 +320,7 @@
 
     if (!list.children.length) {
       list.appendChild(el('div', { class: 'tt-empty text-muted', text: probing ? 'Looking for phones…' : probed
-        ? 'No phones found. On the phone, turn on Settings → Remote control and keep the Capture screen open. If it still doesn\'t appear, add it by the address shown on its Capture screen.'
+        ? 'No phones found. On the phone, turn on Settings → Remote control and keep the app open. If it still doesn\'t appear, add it by the address shown in its remote-control banner.'
         : 'Click Find phones.' }));
     }
   }
@@ -406,7 +407,13 @@
     this.wsLive = false;
     this.wanted = true;
     this.backoff = 1000;
-    this.thumbs = new Map();  // shot id -> object URL
+    this.thumbs = new Map();  // tray item thumbKey -> object URL
+    this.source = EDITOR_SOURCE;  // what the tray shows: EDITOR_SOURCE or a phone session id
+    this.sessions = [];           // the phone's badge sessions (summaries), newest first
+    this.sessionsSupported = null;
+    this.sessionDetail = {};      // session id -> the session with its notes and media
+    this.deleting = new Set();    // session ids this tab is deleting (no "deleted on the phone" notice)
+    this.cameraLoading = false;
     this.lastMsgAt = 0;
     this.watchdog = null;
     this.stopWanted = null;   // id of a job to stop once the phone answers again
@@ -433,13 +440,56 @@
   };
 
   Conn.prototype.sync = async function () {
-    var r = await Promise.all([this.api('GET', '/status'), this.api('GET', '/camera'), this.api('GET', '/shots'), this.api('GET', '/jobs/current')]);
+    var r = await Promise.all([this.api('GET', '/status'), this.api('GET', '/shots'), this.api('GET', '/jobs/current')]);
     this.status = r[0];
-    this.caps = r[1].capabilities;
-    this.camera = r[1].settings;
-    this.shots = r[2].shots;
-    this.job = r[3].job;
+    this.shots = r[1].shots;
+    this.job = r[2].job;
+    await this.loadCamera();
+    try {
+      await loadSessions(this);
+      if (this.source !== EDITOR_SOURCE) await loadSessionDetail(this, this.source);
+    } catch (e) {
+      if (e.code === 'unauthorized') throw e;
+      this.source = EDITOR_SOURCE;  // shown without the sessions until the next reconnect
+    }
   };
+
+  // Whether the phone's Capture screen is open. Apps from before Nov 7, 2026
+  // don't say, and only serve the API while it's open.
+  function camIn(st) { return st.cameraOpen !== false; }
+
+  // The camera exists only while the phone's Capture screen is open; until
+  // then GET /camera answers 503 and the camera controls are left empty.
+  Conn.prototype.loadCamera = async function () {
+    if (!camIn(this.status)) { this.caps = null; this.camera = null; return; }
+    try {
+      var cam = await this.api('GET', '/camera');
+      this.caps = cam.capabilities;
+      this.camera = cam.settings;
+    } catch (e) {
+      if (e.code !== 'camera_unavailable') throw e;
+      this.caps = null;
+      this.camera = null;
+    }
+  };
+
+  // The Capture screen opened or closed on the phone (seen in a status).
+  function cameraChanged(c) {
+    if (camIn(c.status) && !c.caps && !c.cameraLoading) {
+      c.cameraLoading = true;
+      c.loadCamera().catch(function () { /* the next status tries again */ }).then(function () {
+        c.cameraLoading = false;
+        if (conn === c) renderCameraControls();
+      });
+      $('tt-preview-msg').textContent = 'Waiting for the preview…';  // hidden again by the next frame
+      $('tt-preview-msg').hidden = false;
+    } else if (!camIn(c.status) && c.caps) {
+      c.caps = null;
+      c.camera = null;
+      renderCameraControls();
+    }
+    renderCameraState();
+  }
 
   Conn.prototype.openWs = function () {
     var self = this, dev = this.dev();
@@ -542,7 +592,10 @@
       case 'status': {
         var prevJob = JSON.stringify(this.job), prevRoles = this.status && this.status.turntable.roles.join();
         delete m.type;
+        var prevTarget = this.status && JSON.stringify(this.status.target);
         this.status = m;
+        if (!camIn(m) !== !this.caps) cameraChanged(this);
+        if (JSON.stringify(m.target) !== prevTarget) renderShots();  // which session is open on the phone
         if (m.job) {
           this.job = m.job;
         } else if (jobActive(this.job)) {
@@ -550,7 +603,7 @@
           var self = this;
           this.api('GET', '/jobs/current').then(function (r) { if (conn === self) { self.job = r.job; renderJob(); } }, function () {});
         }
-        if (m.camera && JSON.stringify(m.camera) !== JSON.stringify(this.camera)) { this.camera = m.camera; renderCameraValues(); }
+        if (m.camera && this.caps && JSON.stringify(m.camera) !== JSON.stringify(this.camera)) { this.camera = m.camera; renderCameraValues(); }
         if (prevRoles !== m.turntable.roles.join()) renderRoles();
         renderStatus();
         if (JSON.stringify(this.job) !== prevJob) renderJob();
@@ -576,6 +629,20 @@
       case 'shot_removed':
         this.shots = this.shots.filter(function (s) { return s.id !== m.id; });
         if (this.thumbs.has(m.id)) { URL.revokeObjectURL(this.thumbs.get(m.id)); this.thumbs.delete(m.id); }
+        renderShots();
+        break;
+      case 'session':
+        onSession(this, m.session);
+        break;
+      case 'session_removed':
+        onSessionRemoved(this, m.id);
+        break;
+      case 'target':
+        if (this.status) this.status.target = m.target;
+        if (m.by === 'phone' && m.target.kind === 'session' && !(m.previous && m.previous.sessionId === m.target.sessionId)) {
+          notice('The phone opened ' + m.target.name + '. To capture into it from here, join it; or start a new set.');
+        }
+        renderStatus();
         renderShots();
         break;
       case 'camera':
@@ -614,6 +681,7 @@
     if (!f || !dev || !dev.token) { if (f) showPair(id); return; }
     disconnect(false);
     var c = new Conn(id, f.host, f.port);
+    c.source = store.source || EDITOR_SOURCE;  // kept if the phone still has that session
     conn = c;
     renderDevices();
     try {
@@ -643,6 +711,7 @@
     conn = null;
     if (userAsked) { store.lastDeviceId = null; saveStore(); }
     hidePrompt();
+    if ($('tt-join').open) $('tt-join').close();  // resolves as Cancel
     renderAll();
   }
 
@@ -768,7 +837,7 @@
   function renderAngle() {
     var a = $('tt-angle');
     var r = conn && (conn.ring || (conn.status && conn.status.ring));
-    if (!r) { a.textContent = ''; return; }
+    if (!r || !cameraOpen()) { a.textContent = ''; return; }  // no ring readings without the camera
     var markers = Array.isArray(r.markers) ? r.markers.length : r.markers;
     if (!r.ok) {
       a.innerHTML = '';
@@ -985,7 +1054,7 @@
     box.innerHTML = '';
     if (!conn || !conn.status) return;
     var t = conn.status.turntable;
-    if (!t.irAvailable) { box.appendChild(el('span', { class: 'text-muted', text: 'No IR on this phone or profile.' })); return; }
+    if (!t.irAvailable) return;  // the Test buttons are hidden then
     t.roles.forEach(function (role) {
       box.appendChild(el('button', { type: 'button', class: 'btn-secondary tt-small', 'data-role': role, text: ROLE_LABELS[role] || role,
         onclick: function () { run(function () { return conn.api('POST', '/turntable/press', { role: role }); }); } }));
@@ -996,15 +1065,20 @@
     var st = conn && conn.status;
     if (!st) return;
     var cal = st.calibration, calEl = $('tt-cal');
+    var ir = st.turntable.irAvailable;
     calEl.innerHTML = '';
     var profile = el('div', { class: 'text-muted', text: st.turntable.profileName });
-    if (cal.state === 'valid') {
-      calEl.appendChild(el('div', { text: 'Calibrated ' + ago(cal.calibratedAt) + ' · ' + cal.degPerSec.toFixed(1) + '°/s' +
-        (cal.step90Deg != null ? ' · step ' + fmtDeg(cal.step90Deg) : '') }));
-    } else if (cal.state === 'stale') {
-      calEl.appendChild(el('div', { class: 'tt-warn', text: 'Calibration out of date' + (cal.reason ? ': ' + cal.reason : '') + '. Calibrate again.' }));
-    } else {
-      calEl.appendChild(el('div', { class: 'tt-warn', text: 'Not calibrated. Auto capture and checked moves need it.' }));
+    // Without IR the phone can't turn the table, so calibration, moves and the
+    // Test buttons don't apply: the box shows only the front and Set front.
+    if (ir) {
+      if (cal.state === 'valid') {
+        calEl.appendChild(el('div', { text: 'Calibrated ' + ago(cal.calibratedAt) + ' · ' + cal.degPerSec.toFixed(1) + '°/s' +
+          (cal.step90Deg != null ? ' · step ' + fmtDeg(cal.step90Deg) : '') }));
+      } else if (cal.state === 'stale') {
+        calEl.appendChild(el('div', { class: 'tt-warn', text: 'Calibration out of date' + (cal.reason ? ': ' + cal.reason : '') + '. Calibrate again.' }));
+      } else {
+        calEl.appendChild(el('div', { class: 'tt-warn', text: 'Not calibrated. Auto capture and checked moves need it.' }));
+      }
     }
     var front = st.turntable.frontRingDeg;
     calEl.appendChild(el('div', { class: 'text-muted', text: front != null ? 'Front set at ring ' + fmtAngle(front)
@@ -1012,38 +1086,163 @@
     calEl.appendChild(profile);
 
     var busy = jobActive(conn.job) || conn.offline;
-    var ir = st.turntable.irAvailable;
-    $('tt-calibrate').disabled = busy || !ir;
-    $('tt-step').disabled = busy || !(calibrated() || hasRole('step_90'));
-    $('tt-step').title = calibrated() ? 'Move 90° and check it against the ring' : 'Press the step button (unchecked: not calibrated)';
-    $('tt-home').disabled = busy || !(calibrated() || hasRole('return_to_origin'));
-    $('tt-goto').querySelector('button').disabled = busy || !calibrated();
-    $('tt-front').disabled = busy;
+    // Moves, calibration, Set front and captures need the phone's Capture
+    // screen (the camera and ring); IR button presses don't.
+    var cam = camIn(st), noCam = cam ? '' : 'Open the Camera screen on the phone first (Open camera on phone, on the preview)';
+    ['tt-calibrate', 'tt-step', 'tt-home', 'tt-goto', 'tt-test'].forEach(function (id) { $(id).hidden = !ir; });
+    $('tt-calibrate').disabled = busy || !cam;
+    $('tt-calibrate').title = noCam;
+    $('tt-step').disabled = busy || !((cam && calibrated()) || hasRole('step_90'));
+    $('tt-step').title = cam && calibrated() ? 'Move 90° and check it against the ring' : 'Press the step button (unchecked: ' + (cam ? 'not calibrated' : 'the camera isn\'t open') + ')';
+    $('tt-home').disabled = busy || !cam || !(calibrated() || hasRole('return_to_origin'));
+    $('tt-home').title = noCam;
+    $('tt-goto').querySelector('button').disabled = busy || !cam || !calibrated();
+    $('tt-front').disabled = busy || !cam;
+    $('tt-front').title = noCam || 'Make where the table is now the front: captures start here, and with a calibration it\'s where Home returns to';
     $('tt-roles').querySelectorAll('button').forEach(function (b) { b.disabled = busy; });
-    $('tt-extra').disabled = busy;
-    renderCaptureButtons(busy, ir);
+    $('tt-extra').disabled = busy || !cam;
+    $('tt-extra').title = noCam;
+    renderCaptureButtons(busy, ir, cam);
+    renderTarget(busy);
     var camLocked = conn.offline || (busy && conn.job.kind !== 'move');
     $('tt-camera').disabled = camLocked;
     $('tt-camera').title = conn.offline ? 'Can\'t reach the phone' : camLocked ? 'Camera settings are locked while a sequence runs' : '';
-    if (!conn.ring) renderAngle();
+    renderCameraState();
+    if (!conn.ring || !cam) renderAngle();
     renderSummary();
+  }
+
+  function cameraOpen() { return !!(conn && conn.status && camIn(conn.status)); }
+
+  function renderCameraState() {
+    $('tt-cam-closed').hidden = !conn || !conn.status || conn.offline || cameraOpen();
+  }
+
+  async function openCamera() {
+    var c = conn, btn = $('tt-open-camera');
+    if (!c) return;
+    btn.disabled = true;
+    btn.textContent = 'Opening the camera…';
+    try {
+      // The phone answers once its camera runs, or 503 after 10 s.
+      await c.api('POST', '/camera/open', {}, 15000);
+      if (conn === c) { c.status.cameraOpen = true; cameraChanged(c); renderStatus(); }
+    } catch (e) {
+      notice(e.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Open camera on phone';
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Capture target: the phone's open session or the editor's shots
+  // -------------------------------------------------------------------------
+
+  function target() { return (conn && conn.status && conn.status.target) || { kind: 'none' }; }
+  function needsJoin() { var t = target(); return t.kind === 'session' && !t.editorJoined; }
+
+  var lastTarget = null;
+  function renderTarget(busy) {
+    var box = $('tt-target'), t = target();
+    // Status arrives twice a second; rebuilding the buttons each time would eat clicks.
+    var sig = JSON.stringify([t, !!busy]);
+    if (sig === lastTarget && box.childNodes.length) return;
+    lastTarget = sig;
+    box.innerHTML = '';
+    box.className = 'tt-target' + (needsJoin() ? ' unjoined' : '');
+    var btn = function (text, title, body) {
+      return el('button', { type: 'button', class: 'btn-secondary tt-small', text: text, title: title, disabled: busy,
+                            onclick: function () { setTarget(body); } });
+    };
+    if (t.kind === 'session' && t.editorJoined) {
+      box.appendChild(el('span', { text: 'Captures go into ' + t.name + ' on the phone.' }));
+      box.appendChild(btn('Start a new set', 'Capture into a new set of shots for the editor instead (' + t.name + ' is already saved on the phone)', { shots: true }));
+    } else if (t.kind === 'session') {
+      box.appendChild(el('span', { text: 'The phone has ' + t.name + ' open.' }));
+      box.appendChild(btn('Join ' + t.name, 'Capture into ' + t.name + ' from here too', { session: t.sessionId }));
+      box.appendChild(btn('Start a new set', 'Capture into a new set of shots for the editor (' + t.name + ' is already saved on the phone)', { shots: true }));
+    } else if (t.kind === 'shots') {
+      box.appendChild(el('span', { class: 'text-muted', text: 'Captures go into the set of shots for the editor.' }));
+    } else {
+      box.appendChild(el('span', { class: 'text-muted', text: 'Nothing open on the phone: the first capture starts a set of shots for the editor.' }));
+    }
+  }
+
+  // POST /api/target: {session: id} joins it, {shots: true} starts a new set.
+  async function setTarget(body) {
+    var c = conn;
+    if (!c) return false;
+    var r = await run(function () { return c.api('POST', '/target', body); });
+    if (!r || conn !== c) return false;
+    c.status.target = r.target;
+    // Show where the captures will land.
+    pickSource(r.target.kind === 'session' ? r.target.sessionId : EDITOR_SOURCE);
+    renderStatus();
+    return true;
+  }
+
+  // Before a capture: the phone has a session open that this editor hasn't
+  // joined, so ask whether to join it or start a new set. Resolves to false
+  // when the user cancels.
+  function askJoin(t) {
+    return new Promise(function (resolve) {
+      var dlg = $('tt-join');
+      $('tt-join-text').textContent = 'The phone has ' + t.name + ' open. Join it, so this capture goes into ' + t.name +
+        ' on the phone, or start a new set of shots for the editor? ' + t.name + ' is already saved on the phone either way.';
+      $('tt-join-yes').textContent = 'Join ' + t.name;
+      var done = function (choice) {
+        ['tt-join-yes', 'tt-join-new', 'tt-join-cancel'].forEach(function (id) { $(id).onclick = null; });
+        dlg.onclose = null;
+        if (dlg.open) dlg.close();
+        resolve(choice);
+      };
+      $('tt-join-yes').onclick = function () { done('join'); };
+      $('tt-join-new').onclick = function () { done('new'); };
+      $('tt-join-cancel').onclick = function () { done(null); };
+      dlg.onclose = function () { done(null); };  // Esc
+      dlg.showModal();
+    });
+  }
+
+  async function ensureTarget() {
+    if (!needsJoin()) return true;
+    var t = target(), choice = await askJoin(t);
+    if (!choice || !conn) return false;
+    return setTarget(choice === 'join' ? { session: t.sessionId } : { shots: true });
+  }
+
+  // Captures and extra shots: settle the target first, and once more if the
+  // phone opened a session in the meantime (409 session_open).
+  async function startCaptureJob(path, body) {
+    if (!conn || !(await ensureTarget())) return;
+    try {
+      await postJob(path, body);
+    } catch (e) {
+      if (e.code !== 'session_open' || !conn) { notice(e.message, 'error'); return; }
+      try { conn.status = await conn.api('GET', '/status'); } catch (e2) { notice(e2.message, 'error'); return; }
+      renderStatus();
+      if (await ensureTarget()) startJob(path, body);
+    }
   }
 
   // Auto capture only appears when the phone can drive the table (IR), and
   // only works once it's calibrated. Both, Stills and Spin are by hand: the
   // phone's prompts say what to do with the table.
-  function renderCaptureButtons(busy, ir) {
+  function renderCaptureButtons(busy, ir, cam) {
     var autoBtn = $('tt-auto-capture'), hint = $('tt-capture-hint');
     autoBtn.hidden = !ir;
-    autoBtn.disabled = busy || !calibrated();
+    autoBtn.disabled = busy || !cam || !calibrated();
     autoBtn.title = calibrated() ? 'The phone turns the table: four stills, then the spin' : 'Calibrate the turntable first';
-    $('tt-capture-both').disabled = busy;
-    $('tt-capture-stills').disabled = busy;
-    $('tt-capture-spin').disabled = busy;
+    $('tt-capture-both').disabled = busy || !cam;
+    $('tt-capture-stills').disabled = busy || !cam;
+    $('tt-capture-spin').disabled = busy || !cam;
     var setLabel = selectedSet();
     var where = setLabel ? ' Shots go in the extra set "' + setLabel + '".' : '';
     var byHand = 'you work the table, following the phone\'s instructions (start it turning and stop it when told, or turn it to each view, depending on the phone\'s capture method).';
-    if (!ir) {
+    if (!cam) {
+      hint.textContent = 'The phone isn\'t on its Camera screen. Open it there, or with Open camera on phone on the preview, to capture.';
+    } else if (!ir) {
       hint.textContent = 'This phone can\'t drive the turntable, so ' + byHand + where;
     } else if (!calibrated()) {
       hint.textContent = 'Auto capture needs the turntable calibrated (Calibrate, above). Until then, use the other buttons: ' + byHand + where;
@@ -1067,7 +1266,14 @@
       : kind === 'stills' ? { stills: true, video: false, auto: false }
       : { stills: false, video: true, auto: false };
     body.setLabel = setLabel;
-    startJob('/capture', body);
+    startCaptureJob('/capture', body);
+  }
+
+  // "The phone is capturing Mk9", "Calibration" and so on, for the job line.
+  function jobTitle(j) {
+    var name = JOB_NAMES[j.kind] || j.kind;
+    var into = j.target && j.target.kind === 'session' && j.target.name ? ' into ' + j.target.name : '';
+    return (j.source === 'phone' ? 'On the phone: ' : '') + name + into;
   }
 
   var lastFinished = null;
@@ -1085,17 +1291,18 @@
     if (!j) { box.hidden = true; hidePrompt(); renderSummary(); return; }
     box.hidden = false;
     box.className = 'tt-job ' + j.state + (offline && active ? ' offline' : '');
-    var name = JOB_NAMES[j.kind] || j.kind;
+    var name = JOB_NAMES[j.kind] || j.kind, title = jobTitle(j);
+    var by = j.stoppedBy === 'phone' ? ' on the phone' : j.stoppedBy === 'editor' ? ' from the editor' : '';
     var text;
     if (active && offline) {
       text = 'Lost contact with the phone during the ' + name.toLowerCase() + ' (last: ' + (j.progress && j.progress.text ? j.progress.text : name + '…') + '). ' +
              'It carries on there, and Stop on the phone works. ' +
              (stopHeld ? 'Your stop will be sent as soon as the phone answers again.' : 'Stop here is sent once the phone answers again.');
     }
-    else if (active) text = j.progress && j.progress.text ? j.progress.text : name + '…';
-    else if (j.state === 'done') text = name + ' done' + (j.result && j.result.complete === false ? ' (stopped early; the shots taken are kept)' : '') + '.';
-    else if (j.state === 'aborted') text = name + ' stopped.';
-    else text = name + ' failed: ' + (j.error ? j.error.message : 'unknown error');
+    else if (active) text = (j.source === 'phone' || j.target && j.target.kind === 'session' ? title + ': ' : '') + (j.progress && j.progress.text ? j.progress.text : name + '…');
+    else if (j.state === 'done') text = title + ' done' + (j.result && j.result.complete === false ? ' (stopped early' + by + '; the shots taken are kept)' : '') + '.';
+    else if (j.state === 'aborted') text = title + ' stopped' + by + '.';
+    else text = title + ' failed: ' + (j.error ? j.error.message : 'unknown error');
     $('tt-job-text').textContent = text;
     var bar = $('tt-job-progress');
     bar.hidden = !active;
@@ -1132,18 +1339,21 @@
       var p = j.progress || {};
       parts.push((JOB_NAMES[j.kind] || j.kind) + (p.step != null && p.of ? ' ' + p.step + '/' + p.of : '') + (j.state === 'waiting' ? ' · waiting for you' : ''));
     }
+    else if (conn.wsLive && !cameraOpen()) parts.push('Camera screen closed');
     if (conn.shots.length) parts.push(conn.shots.length + ' shot' + (conn.shots.length > 1 ? 's' : '') + ' on the phone');
+    if (conn.sessions.length) parts.push(conn.sessions.length + ' session' + (conn.sessions.length > 1 ? 's' : ''));
     s.textContent = parts.join(' · ');
     s.className = 'tt-summary-status connected' + (conn.offline ? ' lost' : j && j.state === 'waiting' ? ' waiting' : '');
   }
 
+  async function postJob(path, body) {
+    var c = conn, r = await c.api('POST', path, body);
+    if (conn === c) { c.job = r.job; renderJob(); }
+    return r;
+  }
+
   function startJob(path, body) {
-    return run(async function () {
-      var r = await conn.api('POST', path, body);
-      conn.job = r.job;
-      renderJob();
-      return r;
-    });
+    return run(function () { return postJob(path, body); });
   }
 
   async function stopJob() {
@@ -1255,44 +1465,271 @@
   }
 
   // -------------------------------------------------------------------------
-  // Shots
+  // Shots and the phone's badge sessions
   // -------------------------------------------------------------------------
+  //
+  // The tray shows one source at a time, picked in the "On the phone" menu:
+  //   - the shots taken for the editor (Remote-API.md § Shots), or
+  //   - a session captured on the phone (Remote-API.md § Sessions): a name,
+  //     notes and its files, kept up to date by `session` and
+  //     `session_removed` messages.
+  // An app without the session endpoints answers 404, and the menu offers
+  // only the shots.
 
-  function shotsInBadge() {
-    var ids = new Set();
-    if (!window.BadgeEditor) return ids;
+  // A tray item, whichever source it comes from. `key` names the file on the
+  // phone; `thumbKey` also changes when it's re-shot.
+  function shotItem(c, s) {
+    return {
+      key: s.id, thumbKey: s.id, filename: s.filename, caption: s.caption, kind: s.kind === 'spin' ? 'video' : 'image',
+      deg: s.actualDeg, bytes: s.web && s.web.bytes, mime: s.web && s.web.mime, ready: s.ready,
+      highlight: s.kind === 'view' && !s.setLabel && s.view === 'front',
+      path: '/shots/' + encodeURIComponent(s.id),
+      tt: { deviceId: c.deviceId, shotId: s.id, kind: s.kind, saved: false },
+    };
+  }
+
+  function sessionPath(id) { return '/sessions/' + encodeURIComponent(id); }
+
+  function sessionItem(c, sess, m) {
+    var key = 'p:' + sess.id + '/' + m.filename;
+    return {
+      key: key, thumbKey: key + '@' + m.takenAt, filename: m.filename, caption: m.caption,
+      kind: m.kind === 'spin' ? 'video' : 'image',
+      deg: m.actualDeg != null ? m.actualDeg : m.nominalDeg, bytes: m.web && m.web.bytes, mime: m.web && m.web.mime,
+      ready: m.ready !== false,
+      highlight: m.kind === 'view' && !m.setLabel && m.view === 'front',
+      path: sessionPath(sess.id) + '/media/' + encodeURIComponent(m.filename),
+      tt: { deviceId: c.deviceId, sessionId: sess.id, file: m.filename, takenAt: m.takenAt, kind: m.kind, saved: false },
+    };
+  }
+
+  function ttKey(tt) { return tt.sessionId ? 'p:' + tt.sessionId + '/' + tt.file : tt.shotId; }
+
+  function currentSession(c) {
+    c = c || conn;
+    if (!c || c.source === EDITOR_SOURCE) return null;
+    return c.sessionDetail[c.source] || c.sessions.find(function (s) { return s.id === c.source; }) || null;
+  }
+
+  function trayItems() {
+    var c = conn;
+    if (!c) return [];
+    if (c.source === EDITOR_SOURCE) return c.shots.map(function (s) { return shotItem(c, s); });
+    var sess = c.sessionDetail[c.source];
+    return sess ? (sess.media || []).map(function (m) { return sessionItem(c, sess, m); }) : [];
+  }
+
+  function itemsInBadge() {
+    var keys = new Set();
+    if (!window.BadgeEditor) return keys;
     var m = window.BadgeEditor.getMedia();
-    m.images.concat(m.videos).forEach(function (x) { if (x.tt) ids.add(x.tt.shotId); });
-    return ids;
+    m.images.concat(m.videos).forEach(function (x) { if (x.tt) keys.add(ttKey(x.tt)); });
+    return keys;
+  }
+
+  // The session open on the phone's Capture screen (the capture target).
+  function isOpenOnPhone(id) { var t = target(); return t.kind === 'session' && t.sessionId === id; }
+
+  function fmtDate(iso) { return iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : ''; }
+
+  function sessionLabel(s) {
+    var n = s.mediaCount != null ? s.mediaCount : (s.media || []).length;
+    return [s.name || 'Untitled', fmtDate(s.createdAt), n + ' file' + (n === 1 ? '' : 's'), n ? fmtBytes(s.bytes) : '',
+            isOpenOnPhone(s.id) ? 'open on the phone' : ''].filter(Boolean).join(' · ');
+  }
+
+  function sortSessions(c) {
+    c.sessions.sort(function (a, b) { return (b.createdAt || '').localeCompare(a.createdAt || ''); });
+  }
+
+  // The phone's sessions; quietly absent on an app that doesn't serve them.
+  async function loadSessions(c) {
+    try {
+      var r = await c.api('GET', '/sessions');
+      c.sessions = r.sessions || [];
+      c.sessionsSupported = true;
+    } catch (e) {
+      if (e.status !== 404 && e.status !== 405) throw e;
+      c.sessions = [];
+      c.sessionsSupported = false;
+    }
+    if (c.source !== EDITOR_SOURCE && !c.sessions.some(function (s) { return s.id === c.source; })) {
+      c.source = EDITOR_SOURCE;
+    }
+  }
+
+  async function loadSessionDetail(c, id) {
+    c.sessionDetail[id] = await c.api('GET', sessionPath(id));
+  }
+
+  // A session was made, saved, captured into or had a file deleted.
+  var detailTimers = {};
+  function onSession(c, s) {
+    var i = c.sessions.findIndex(function (x) { return x.id === s.id; });
+    if (i >= 0) c.sessions[i] = s; else { c.sessions.push(s); sortSessions(c); }
+    c.sessionsSupported = true;
+    var d = c.sessionDetail[s.id];
+    if (d && d.updatedAt !== s.updatedAt) {
+      if (c.source !== s.id) {
+        delete c.sessionDetail[s.id];  // fetched again when it's picked
+      } else {
+        // Files arrive one at a time during a capture; fetch once they settle.
+        clearTimeout(detailTimers[s.id]);
+        detailTimers[s.id] = setTimeout(function () {
+          if (conn !== c) return;
+          loadSessionDetail(c, s.id).then(function () { if (conn === c) renderShots(); }, function () {});
+        }, 400);
+      }
+    }
+    renderShots();
+  }
+
+  function onSessionRemoved(c, id) {
+    var s = c.sessions.find(function (x) { return x.id === id; });
+    c.sessions = c.sessions.filter(function (x) { return x.id !== id; });
+    delete c.sessionDetail[id];
+    c.thumbs.forEach(function (url, k) {
+      if (k.indexOf('p:' + id + '/') === 0) { URL.revokeObjectURL(url); c.thumbs.delete(k); }
+    });
+    if (c.source === id) {
+      c.source = EDITOR_SOURCE;
+      if (!c.deleting.has(id)) notice((s ? s.name : 'The session') + ' was deleted on the phone.', 'warn');
+    }
+    renderShots();
+  }
+
+  async function pickSource(id) {
+    var c = conn;
+    if (!c) return;
+    c.source = id;
+    store.source = id;
+    saveStore();
+    renderShots();
+    if (id === EDITOR_SOURCE || c.sessionDetail[id]) return;
+    try {
+      await loadSessionDetail(c, id);
+    } catch (e) {
+      notice('Couldn\'t open that session: ' + e.message, 'error');
+    }
+    if (conn === c && c.source === id) renderShots();
+  }
+
+  var lastSourceMenu = null;
+  function renderSourceMenu() {
+    var sel = $('tt-source'), c = conn;
+    if (!c) { sel.innerHTML = ''; lastSourceMenu = null; return; }
+    var n = c.shots.length;
+    var labels = c.sessions.map(function (s) { return s.id + '=' + sessionLabel(s); });
+    var sig = JSON.stringify([n, c.source, labels]);
+    if (sig === lastSourceMenu) return;
+    lastSourceMenu = sig;
+    sel.innerHTML = '';
+    sel.appendChild(el('option', { value: EDITOR_SOURCE, text: 'Shots for the editor · ' + n + ' shot' + (n === 1 ? '' : 's') }));
+    if (c.sessions.length) {
+      var group = el('optgroup', { label: 'Sessions captured on the phone' });
+      c.sessions.forEach(function (s) { group.appendChild(el('option', { value: s.id, text: sessionLabel(s) })); });
+      sel.appendChild(group);
+    }
+    sel.value = c.source;
+  }
+
+  function useNotes(text) {
+    var f = $('f-notes');
+    if (!f) return;
+    if (f.value.trim() && f.value.trim() !== text.trim() && !confirm('Replace the badge\'s notes with the session\'s?')) return;
+    f.value = text;
+    f.dispatchEvent(new Event('input', { bubbles: true }));
+    notice('Copied the session\'s notes to the badge.');
+  }
+
+  // Open as new badge: the session's name as the title, its notes as the
+  // body, and its files in the media list.
+  async function openAsNewBadge() {
+    var c = conn, sess = c && c.sessionDetail[c.source];
+    if (!sess || !window.BadgeEditor) return;
+    if (!window.BadgeEditor.isRepoOpen()) { notice('Open the repo first.', 'error'); return; }
+    if (!window.BadgeEditor.startNew({ title: sess.name || '', notes: sess.notes || '' })) return;
+    await addItems(trayItems());
+  }
+
+  function renderSessionInfo() {
+    var box = $('tt-session-info'), c = conn;
+    box.innerHTML = '';
+    if (!c) { box.hidden = true; return; }
+    if (c.source === EDITOR_SOURCE) {
+      box.hidden = c.sessionsSupported !== false;
+      if (!box.hidden) box.appendChild(el('div', { class: 'tt-hint', text: 'This phone\'s app doesn\'t share the sessions captured on the phone, only the shots taken for the editor. Update the app to pull those in.' }));
+      return;
+    }
+    box.hidden = false;
+    var sess = currentSession(c);
+    if (!sess) return;
+    var facts = ['Captured ' + fmtDate(sess.createdAt)];
+    if (sess.updatedAt && sess.updatedAt !== sess.createdAt) facts.push('changed ' + ago(sess.updatedAt));
+    if (isOpenOnPhone(sess.id)) facts.push('open on the phone');
+    if (sess.busy) facts.push('capturing into it now');
+    box.appendChild(el('div', { class: 'tt-session-title', text: sess.name || 'Untitled session' }));
+    box.appendChild(el('div', { class: 'text-muted', text: facts.join(' · ') }));
+    var detail = c.sessionDetail[c.source];
+    if (!detail) { box.appendChild(el('div', { class: 'text-muted', text: 'Loading the session\'s notes and files…' })); return; }
+    var notes = (detail.notes || '').trim();
+    if (notes) {
+      box.appendChild(el('div', { class: 'tt-session-notes-head' }, [
+        el('span', { class: 'tt-label', text: 'Notes' }),
+        el('button', { type: 'button', class: 'btn-secondary tt-small', text: 'Use as badge notes',
+                       title: 'Copy these notes into the badge\'s Notes field', onclick: function () { useNotes(notes); } }),
+      ]));
+      box.appendChild(el('div', { class: 'tt-session-notes', text: notes }));
+    } else {
+      box.appendChild(el('div', { class: 'text-muted', text: 'No notes in this session.' }));
+    }
+    box.appendChild(el('div', { class: 'tt-row' }, [
+      el('button', { type: 'button', class: 'btn-primary tt-small', text: 'Open as new badge', disabled: !(detail.media || []).length && !notes,
+                     title: 'Start a new badge with this session\'s name, notes and files', onclick: openAsNewBadge }),
+    ]));
   }
 
   function renderShots() {
     var list = $('tt-shot-list');
     list.innerHTML = '';
-    var shots = conn ? conn.shots : [];
-    var bytes = shots.reduce(function (n, s) { return n + ((s.web && s.web.bytes) || 0); }, 0);
-    $('tt-shots-count').textContent = shots.length ? shots.length + ' · ' + fmtBytes(bytes) : 'none yet';
-    $('tt-add-all').disabled = !shots.length;
-    $('tt-clear-all').disabled = !shots.length;
-    var inBadge = shotsInBadge();
-    shots.forEach(function (s) {
+    renderSourceMenu();
+    renderSessionInfo();
+    var fromEditor = !conn || conn.source === EDITOR_SOURCE;
+    var sess = currentSession();
+    var items = trayItems();
+    var bytes = items.reduce(function (n, s) { return n + (s.bytes || 0); }, 0);
+    $('tt-shots-count').textContent = items.length ? items.length + (bytes ? ' · ' + fmtBytes(bytes) : '')
+      : fromEditor ? 'none yet' : conn && conn.sessionDetail[conn.source] ? 'no files' : '';
+    $('tt-add-all').textContent = fromEditor ? 'Add all to badge' : 'Add all to this badge';
+    $('tt-add-all').disabled = !items.some(function (s) { return s.ready; });
+    var clear = $('tt-clear-all');
+    var writing = !!(sess && sess.busy);
+    clear.textContent = fromEditor ? 'Delete all on phone' : 'Delete session from phone';
+    clear.disabled = fromEditor ? !items.length : !sess || writing || isOpenOnPhone(sess.id);
+    clear.title = fromEditor ? 'Delete the shots taken for the editor from the phone'
+      : writing ? 'A capture is writing into this session'
+      : sess && isOpenOnPhone(sess.id) ? 'It\'s open on the phone; open another session or close it there first'
+      : 'Delete this session and all its files from the phone';
+    var inBadge = itemsInBadge();
+    items.forEach(function (s) {
       var img = el('img', { alt: '', loading: 'lazy' });
       loadThumb(s, img);
       var meta = [s.filename];
-      if (s.actualDeg != null) meta.push(fmtDeg(s.actualDeg));
-      if (s.web && s.web.bytes) meta.push(fmtBytes(s.web.bytes));
-      var added = inBadge.has(s.id);
+      if (s.deg != null) meta.push(fmtDeg(s.deg));
+      if (s.bytes) meta.push(fmtBytes(s.bytes));
+      var added = inBadge.has(s.key);
       list.appendChild(el('div', { class: 'tt-shot' + (added ? ' added' : '') + (s.ready ? '' : ' pending'), title: s.caption }, [
-        el('div', { class: 'tt-shot-thumb' }, [img, s.kind === 'spin' ? el('span', { class: 'tt-shot-play', text: '▶' }) : null]),
+        el('div', { class: 'tt-shot-thumb' }, [img, s.kind === 'video' ? el('span', { class: 'tt-shot-play', text: '▶' }) : null]),
         el('div', { class: 'tt-shot-caption', text: s.caption || s.filename }),
         el('div', { class: 'tt-shot-meta text-muted', text: meta.join(' · ') }),
         el('div', { class: 'tt-shot-actions' }, [
           s.ready
             ? el('button', { type: 'button', class: 'btn-secondary tt-small', text: added ? '✓ In badge' : '+ Add', title: added ? 'Add again (replaces it)' : 'Add to the badge',
-                             onclick: function () { addShots([s]); } })
+                             onclick: function () { addItems([s]); } })
             : el('span', { class: 'text-muted', text: 'Encoding…' }),
-          el('button', { type: 'button', class: 'btn-secondary tt-small', text: '✕', title: 'Delete from the phone',
-                         onclick: function () { deleteShot(s); } }),
+          el('button', { type: 'button', class: 'btn-secondary tt-small', text: '✕', disabled: !fromEditor && writing,
+                         title: !fromEditor && writing ? 'A capture is writing into this session' : 'Delete from the phone',
+                         onclick: function () { deleteItem(s); } }),
         ]),
       ]));
     });
@@ -1302,61 +1739,85 @@
   function loadThumb(s, img) {
     var c = conn;
     if (!c) return;
-    if (c.thumbs.has(s.id)) { img.src = c.thumbs.get(s.id); return; }
-    c.blob('/shots/' + encodeURIComponent(s.id) + '?variant=thumb').then(function (b) {
+    if (c.thumbs.has(s.thumbKey)) { img.src = c.thumbs.get(s.thumbKey); return; }
+    c.blob(s.path + '?variant=thumb').then(function (b) {
       if (conn !== c) return;
       var url = URL.createObjectURL(b);
-      c.thumbs.set(s.id, url);
+      c.thumbs.set(s.thumbKey, url);
       img.src = url;
     }, function () { /* leave blank */ });
   }
 
-  async function addShots(shots) {
+  async function addItems(items) {
     if (!conn || !window.BadgeEditor) return;
     if (!window.BadgeEditor.isRepoOpen()) { notice('Open the repo first.', 'error'); return; }
-    var c = conn, ready = shots.filter(function (s) { return s.ready; }), items = [];
+    var c = conn, ready = items.filter(function (s) { return s.ready; }), out = [];
     var btn = $('tt-add-all');
     btn.disabled = true;
     try {
       for (var i = 0; i < ready.length; i++) {
         var s = ready[i];
         notice('Downloading ' + (i + 1) + ' of ' + ready.length + ': ' + s.filename + '…');
-        var blob = await c.blob('/shots/' + encodeURIComponent(s.id));
-        var file = new File([blob], s.filename, { type: (s.web && s.web.mime) || blob.type });
-        items.push({
-          kind: s.kind === 'spin' ? 'video' : 'image', file: file, filename: s.filename, caption: s.caption,
-          highlight: s.kind === 'view' && !s.setLabel && s.view === 'front',
-          tt: { deviceId: c.deviceId, shotId: s.id, kind: s.kind, saved: false },
-        });
+        var blob = await c.blob(s.path);
+        var file = new File([blob], s.filename, { type: s.mime || blob.type });
+        out.push({ kind: s.kind, file: file, filename: s.filename, caption: s.caption, highlight: s.highlight,
+                   tt: Object.assign({}, s.tt) });
       }
     } catch (e) {
       notice('Download failed: ' + e.message, 'error');
       btn.disabled = false;
-      if (!items.length) return;
+      if (!out.length) return;
     }
-    window.BadgeEditor.addMedia(items);
-    var skipped = shots.length - ready.length;
-    notice('Added ' + items.length + ' to the badge\'s photos & video' + (skipped ? '. ' + skipped + ' still encoding, add later.' : '.'));
+    window.BadgeEditor.addMedia(out);
+    var skipped = items.length - ready.length;
+    notice('Added ' + out.length + ' to the badge\'s photos & video' + (skipped ? '. ' + skipped + ' still encoding, add later.' : '.'));
     btn.disabled = false;
     renderShots();
   }
 
-  async function deleteShot(s) {
-    if (!confirm('Delete ' + s.filename + ' from the phone?')) return;
-    var r = await run(function () { return conn.api('DELETE', '/shots/' + encodeURIComponent(s.id)).then(function () { return true; }); });
-    if (r && conn) { conn.shots = conn.shots.filter(function (x) { return x.id !== s.id; }); renderShots(); }
+  // ✕ on a tray item: a shot, or one file of a session.
+  async function deleteItem(s) {
+    var c = conn;
+    if (!c) return;
+    var sess = s.tt.sessionId ? currentSession(c) : null;
+    if (!confirm('Delete ' + s.filename + (sess ? ' from ' + sess.name : '') + ' on the phone?')) return;
+    var path = s.tt.sessionId ? s.path : '/shots/' + encodeURIComponent(s.tt.shotId);
+    var ok = await run(function () { return c.api('DELETE', path).then(function () { return true; }); });
+    if (!ok || conn !== c) return;
+    if (s.tt.shotId) {
+      c.shots = c.shots.filter(function (x) { return x.id !== s.tt.shotId; });
+    } else {
+      var d = c.sessionDetail[s.tt.sessionId];
+      if (d) d.media = d.media.filter(function (m) { return m.filename !== s.tt.file; });
+    }
+    renderShots();
   }
 
-  async function deleteAllShots() {
-    var inBadge = shotsInBadge(), notAdded = conn.shots.filter(function (s) { return !inBadge.has(s.id); }).length;
-    var msg = 'Delete all ' + conn.shots.length + ' shots from the phone?' + (notAdded ? ' ' + notAdded + ' of them haven\'t been added to the badge.' : '');
-    if (!confirm(msg)) return;
-    var r = await run(function () { return conn.api('DELETE', '/shots'); });
-    if (r && conn) { conn.shots = []; renderShots(); }
+  async function deleteAll() {
+    var c = conn;
+    if (!c) return;
+    var inBadge = itemsInBadge();
+    if (c.source === EDITOR_SOURCE) {
+      var notAdded = c.shots.filter(function (s) { return !inBadge.has(s.id); }).length;
+      if (!confirm('Delete all ' + c.shots.length + ' shots taken for the editor from the phone?' +
+                   (notAdded ? ' ' + notAdded + ' of them haven\'t been added to the badge.' : '') +
+                   ' The sessions captured on the phone are kept.')) return;
+      var r = await run(function () { return c.api('DELETE', '/shots'); });
+      if (r && conn === c) { c.shots = []; renderShots(); }
+      return;
+    }
+    var sess = currentSession(c), items = trayItems();
+    if (!sess) return;
+    var missing = items.filter(function (s) { return !inBadge.has(s.key); }).length;
+    if (!confirm('Delete ' + sess.name + ' and its ' + items.length + ' file' + (items.length === 1 ? '' : 's') + ' from the phone?' +
+                 (missing ? ' ' + missing + ' of them aren\'t in the badge.' : '') + ' This can\'t be undone.')) return;
+    c.deleting.add(sess.id);
+    var ok = await run(function () { return c.api('DELETE', sessionPath(sess.id)).then(function () { return true; }); });
+    if (ok && conn === c) { onSessionRemoved(c, sess.id); notice('Deleted ' + sess.name + ' from the phone.'); }
   }
 
   // -------------------------------------------------------------------------
-  // Saving: originals to _capture/, and clearing the phone
+  // Saving: clearing the phone of what went into the badge
   // -------------------------------------------------------------------------
 
   function pendingTtItems(images, videos) {
@@ -1373,77 +1834,66 @@
   // Cheap refresh of the "✓ In badge" marks when the media list changes.
   var lastInBadge = '';
   function renderShotsBadgeState() {
-    var key = Array.from(shotsInBadge()).sort().join();
+    var key = Array.from(itemsInBadge()).sort().join();
     if (key !== lastInBadge) { lastInBadge = key; renderShots(); }
   }
 
-  async function writeFile(dir, name, data) {
-    var h = await dir.getFileHandle(name, { create: true });
-    var w = await h.createWritable();
-    await w.write(data);
-    await w.close();
-  }
-
+  // After a save, with "Remove from the phone afterwards": the shots that went
+  // into the badge, and each session they came from once every one of its
+  // files is in the badge as it is now on the phone. Anything else stays.
   async function afterSave(ctx) {
+    var all = ctx.images.concat(ctx.videos).filter(function (x) { return x.tt; });
     var items = pendingTtItems(ctx.images, ctx.videos);
     if (!items.length) return null;
-    var saveOriginals = $('tt-save-originals').checked, clearAfter = $('tt-clear-after').checked;
     items.forEach(function (x) { x.tt.saved = true; });
-    if (!saveOriginals && !clearAfter) return null;
+    if (!$('tt-clear-after').checked) return null;
     var c = conn && conn.deviceId === items[0].tt.deviceId ? conn : null;
-    if (!c) {
-      return 'The phone isn\'t connected, so ' + (saveOriginals ? 'the originals weren\'t saved' : '') +
-        (saveOriginals && clearAfter ? ' and ' : '') + (clearAfter ? 'the shots are still on it' : '') + '.';
-    }
+    if (!c) return 'The phone isn\'t connected, so what came from it is still on it.';
     var msgs = [];
-    if (saveOriginals) {
-      var dir = await ctx.repoDir.getDirectoryHandle('_capture', { create: true });
-      dir = await dir.getDirectoryHandle(ctx.con, { create: true });
-      dir = await dir.getDirectoryHandle(ctx.slug, { create: true });
-      var orig = await dir.getDirectoryHandle('originals', { create: true });
-      var n = 0, failed = [];
-      for (var i = 0; i < items.length; i++) {
-        var it = items[i];
-        var name = it.tt.kind === 'spin' ? it.filename.replace(/\.[^.]+$/, '') + '-source.mp4' : it.filename;
-        try {
-          setSaveStatus('Saving originals ' + (i + 1) + ' of ' + items.length + '…');
-          await writeFile(orig, name, await c.blob('/shots/' + encodeURIComponent(it.tt.shotId) + '?variant=original'));
-          n++;
-        } catch (e) {
-          failed.push(it.filename + ' (' + e.message + ')');
-        }
-      }
-      try {
-        await writeFile(dir, 'session.json', JSON.stringify(await c.api('GET', '/session.json'), null, 2) + '\n');
-      } catch (e) {
-        failed.push('session.json (' + e.message + ')');
-      }
-      msgs.push('Wrote ' + n + ' original' + (n === 1 ? '' : 's') + ' and session.json to _capture/' + ctx.con + '/' + ctx.slug + '/.');
-      if (failed.length) {
-        msgs.push('Couldn\'t save: ' + failed.join(', ') + '. Those shots were left on the phone.');
-        if (clearAfter) items = items.filter(function (x) { return !failed.some(function (f) { return f.indexOf(x.filename + ' ') === 0; }); });
-      }
-    }
-    if (clearAfter) {
+
+    var shots = items.filter(function (x) { return x.tt.shotId; });
+    if (shots.length) {
       var removed = 0;
-      for (var j = 0; j < items.length; j++) {
+      for (var j = 0; j < shots.length; j++) {
         try {
-          await c.api('DELETE', '/shots/' + encodeURIComponent(items[j].tt.shotId));
+          await c.api('DELETE', '/shots/' + encodeURIComponent(shots[j].tt.shotId));
           removed++;
         } catch (e) {
           if (e.code === 'not_found') removed++;
         }
       }
-      c.shots = c.shots.filter(function (s) { return !items.some(function (x) { return x.tt.shotId === s.id; }); });
-      renderShots();
+      c.shots = c.shots.filter(function (s) { return !shots.some(function (x) { return x.tt.shotId === s.id; }); });
       msgs.push('Removed ' + removed + ' shot' + (removed === 1 ? '' : 's') + ' from the phone.');
     }
-    return msgs.join(' ');
-  }
 
-  function setSaveStatus(text) {
-    var s = $('save-status');
-    if (s) { s.textContent = text; s.className = 'save-status'; }
+    var ids = Array.from(new Set(items.map(function (x) { return x.tt.sessionId; }).filter(Boolean)));
+    for (var k = 0; k < ids.length; k++) {
+      var id = ids[k], sess;
+      try {
+        sess = await c.api('GET', sessionPath(id));
+      } catch (e) {
+        if (e.code !== 'not_found') msgs.push('Couldn\'t check a session on the phone, so it\'s still there: ' + e.message);
+        continue;
+      }
+      var have = {};
+      all.forEach(function (x) { if (x.tt.sessionId === id) have[x.tt.file] = x.tt.takenAt; });
+      var left = (sess.media || []).filter(function (m) { return have[m.filename] !== m.takenAt; });
+      if (left.length) {
+        msgs.push(sess.name + ' stays on the phone: ' + left.map(function (m) { return m.filename; }).join(', ') +
+                  (left.length === 1 ? ' isn\'t' : ' aren\'t') + ' in the badge' + (left.some(function (m) { return have[m.filename]; }) ? ' as it is now' : '') + '.');
+        continue;
+      }
+      try {
+        c.deleting.add(id);
+        await c.api('DELETE', sessionPath(id));
+        onSessionRemoved(c, id);
+        msgs.push('Removed ' + sess.name + ' from the phone.');
+      } catch (e) {
+        msgs.push(sess.name + ' stays on the phone: ' + e.message);
+      }
+    }
+    renderShots();
+    return msgs.join(' ') || null;
   }
 
   // -------------------------------------------------------------------------
@@ -1502,7 +1952,7 @@
 
     $('tt-calibrate').addEventListener('click', function () { startJob('/calibrate', {}); });
     $('tt-step').addEventListener('click', function () {
-      if (calibrated()) startJob('/turntable/move', { by: 90 });
+      if (calibrated() && cameraOpen()) startJob('/turntable/move', { by: 90 });
       else run(function () { return conn.api('POST', '/turntable/press', { role: 'step_90' }); });
     });
     $('tt-home').addEventListener('click', function () { startJob('/turntable/move', { home: true }); });
@@ -1536,23 +1986,20 @@
     $('tt-extra').addEventListener('click', function () {
       var label = EXTRA_LABELS.indexOf(store.extraLabel) >= 0 ? store.extraLabel : $('tt-extra-other').value.trim();
       if (!label) { notice('Give the extra shot a label.', 'error'); $('tt-extra-other').focus(); return; }
-      startJob('/extra', { label: label });
+      startCaptureJob('/extra', { label: label });
     });
     $('tt-extra-other').addEventListener('change', function () { store.extraLabel = this.value.trim(); saveStore(); });
     $('tt-stop').addEventListener('click', stopJob);
-    $('tt-add-all').addEventListener('click', function () { if (conn) addShots(conn.shots); });
-    $('tt-clear-all').addEventListener('click', function () { if (conn) deleteAllShots(); });
+    $('tt-add-all').addEventListener('click', function () { if (conn) addItems(trayItems()); });
+    $('tt-source').addEventListener('change', function () { pickSource(this.value); });
+    $('tt-clear-all').addEventListener('click', deleteAll);
+    $('tt-open-camera').addEventListener('click', openCamera);
 
-    // The save options sit inside the badge form; keep them from marking it dirty.
-    ['tt-save-originals', 'tt-clear-after'].forEach(function (id) {
-      var cb = $(id);
-      cb.checked = id === 'tt-save-originals' ? !!store.saveOriginals : store.clearAfter !== false;
-      ['input', 'change'].forEach(function (ev) { cb.addEventListener(ev, function (e) { e.stopPropagation(); }); });
-      cb.addEventListener('change', function () {
-        if (id === 'tt-save-originals') store.saveOriginals = cb.checked; else store.clearAfter = cb.checked;
-        saveStore();
-      });
-    });
+    // The save option sits inside the badge form; keep it from marking it dirty.
+    var clearAfter = $('tt-clear-after');
+    clearAfter.checked = store.clearAfter !== false;
+    ['input', 'change'].forEach(function (ev) { clearAfter.addEventListener(ev, function (e) { e.stopPropagation(); }); });
+    clearAfter.addEventListener('change', function () { store.clearAfter = clearAfter.checked; saveStore(); });
 
     if (window.BadgeEditor) {
       window.BadgeEditor.onSaved(afterSave);

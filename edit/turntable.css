@@ -119,6 +119,7 @@
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   color: var(--text-muted); background: rgba(0, 0, 0, 0.6);
 }
+.tt-cam-closed { flex-direction: column; gap: 10px; color: var(--text); background: rgba(0, 0, 0, 0.75); text-align: center; padding: 12px; }
 .tt-preview-msg.lost { color: #f0b429; background: rgba(0, 0, 0, 0.8); font-size: 16px; font-weight: 600; }
 .tt-countdown {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
@@ -162,6 +163,8 @@
 #tt-set-label { flex: 1; min-width: 160px; }
 .tt-set-choice { align-items: center; }
 .tt-hint { font-size: 12px; color: var(--text-muted); line-height: 1.45; }
+.tt-target { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; line-height: 1.45; }
+.tt-target.unjoined { color: #f0b429; }
 #tt-auto-capture[hidden] { display: none; }
 #tt-extra-other { flex: 1; min-width: 140px; }
 #tt-extra-other[hidden] { display: none; }
@@ -203,6 +206,17 @@
 .tt-shot-meta { padding: 2px 8px; font-size: 11px; font-family: var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tt-shot-actions { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 6px 8px 8px; margin-top: auto; }
 .tt-shot.added .tt-shot-actions button:first-child { color: var(--accent); }
+
+/* Which set the tray shows: the editor's shots or one of the phone's badge sessions */
+.tt-source { max-width: 340px; }
+.tt-box [hidden], .tt-shots [hidden], .tt-save-options [hidden] { display: none; }
+.tt-session-info { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; line-height: 1.45; }
+.tt-session-title { font-weight: 600; font-size: 14px; }
+.tt-session-notes {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 8px 10px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 180px; overflow: auto;
+}
+.tt-session-notes-head { display: flex; align-items: center; gap: 8px; }
 
 .tt-notice { border-radius: var(--radius); padding: 8px 12px; background: var(--surface-2); }
 .tt-notice.error { color: #fca5a5; border: 1px solid #7f1d1d; }
