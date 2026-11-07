@@ -387,7 +387,27 @@ permalink: /edit/
 
       <fieldset class="admin-section">
         <legend>Notes</legend>
-        <textarea id="f-notes" rows="4" placeholder="*Stub - add notes, specs, and photos.*"></textarea>
+        <div class="md-editor">
+          <div class="md-bar">
+            <div class="md-tabs" role="tablist">
+              <button type="button" role="tab" id="md-tab-write" class="md-tab active" aria-selected="true">Write</button>
+              <button type="button" role="tab" id="md-tab-preview" class="md-tab" aria-selected="false">Preview</button>
+            </div>
+            <div id="md-tools" class="md-tools" role="toolbar" aria-label="Formatting">
+              <button type="button" data-md="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+              <button type="button" data-md="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+              <button type="button" data-md="heading" title="Heading">H</button>
+              <button type="button" data-md="link" title="Link (Ctrl+K)">Link</button>
+              <button type="button" data-md="ul" title="Bulleted list">• List</button>
+              <button type="button" data-md="ol" title="Numbered list">1. List</button>
+              <button type="button" data-md="quote" title="Quote">“ ”</button>
+              <button type="button" data-md="code" title="Code: inline, or a block when several lines are selected">&lt;/&gt;</button>
+            </div>
+            <a class="md-help" href="https://www.markdownguide.org/basic-syntax/" target="_blank" rel="noopener">Markdown help</a>
+          </div>
+          <textarea id="f-notes" rows="8" placeholder="*Stub - add notes, specs, and photos.*"></textarea>
+          <div id="md-preview" class="md-preview badge-notes-content" hidden></div>
+        </div>
       </fieldset>
 
       <fieldset class="admin-section">
@@ -436,5 +456,7 @@ permalink: /edit/
 
 <link rel="stylesheet" href="./app.css">
 <link rel="stylesheet" href="./turntable.css">
+<script src="./markdown.js"></script>
 <script src="./app.js"></script>
+<script src="./notes.js"></script>
 <script src="./turntable.js"></script>

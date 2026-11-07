@@ -46,6 +46,7 @@ _template/
 
 edit/               Web editor - add/edit badges via File System Access API (Chrome/Edge)
                     turntable.js/.css: the Turntable panel that drives the capture app
+                    notes.js, markdown.js: the Notes box (toolbar, Write / Preview) and its renderer
 
 badge/              Category landing page - type: badge
 sao/                Category landing page - type: sao
@@ -62,6 +63,8 @@ TODO.md             Pending work
 ### Option A - the web editor (recommended)
 
 Open `https://hamster.github.io/badges/edit/` (or `http://localhost:4000/badges/edit/` during local dev) in Chrome or Edge, click **Open repo…**, and select your local clone of this repo. The editor writes badge files and photos straight to disk - nothing is committed or pushed automatically. Fill in the form, drag in photos, hit **Save badge to disk**, then `git add` / `git commit` / push as normal.
+
+The **Notes** box is the body of the badge's `index.md`, shown on the badge page under Notes. It takes Markdown (GitHub style, as Jekyll's kramdown renders it): the toolbar adds bold, italics, headings, links, lists, quotes and code (Ctrl+B, Ctrl+I and Ctrl+K work too), and **Preview** shows it as the badge page will. Plain text works as is; to break a line without starting a new paragraph, end it with two spaces or a backslash. Notes typed on the turntable phone arrive here as they were typed.
 
 The editor remembers your repo folder between sessions (IndexedDB). On your next visit a **Reopen [folder]…** button appears - one click re-grants access without navigating the directory picker again.
 

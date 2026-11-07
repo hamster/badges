@@ -1182,31 +1182,10 @@
   function tagList(values) { return (values || []).map(function (v) { return tagHtml('', v); }).join(' '); }
   function specRow(label, valueHtml) { return '<div class="spec-row"><div class="spec-label">' + esc(label) + '</div><div class="spec-value">' + valueHtml + '</div></div>'; }
 
-  function inlineMarkdown(s) {
-    s = esc(s);
-    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
-    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-    s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-    return s;
-  }
-
+  // The notes as the badge page shows them (markdown.js; the site uses kramdown).
   function renderNotesMarkdown(src) {
     if (!src || !src.trim()) return '<p><em>No notes yet.</em></p>';
-    var lines = src.split(/\r?\n/), out = [], inList = false, paragraph = [];
-    function flushP() { if (paragraph.length) { out.push('<p>' + paragraph.join(' ') + '</p>'); paragraph = []; } }
-    function closeList() { if (inList) { out.push('</ul>'); inList = false; } }
-    lines.forEach(function (line) {
-      var t = line.trim();
-      if (!t) { flushP(); closeList(); return; }
-      var h = t.match(/^(#{1,3})\s+(.*)$/);
-      if (h) { flushP(); closeList(); out.push('<h' + (h[1].length + 1) + '>' + inlineMarkdown(h[2]) + '</h' + (h[1].length + 1) + '>'); return; }
-      var li = t.match(/^[-*]\s+(.*)$/);
-      if (li) { flushP(); if (!inList) { out.push('<ul>'); inList = true; } out.push('<li>' + inlineMarkdown(li[1]) + '</li>'); return; }
-      closeList(); paragraph.push(inlineMarkdown(t));
-    });
-    flushP(); closeList();
-    return out.join('\n');
+    return window.BadgeMarkdown ? window.BadgeMarkdown.render(src) : '<pre>' + esc(src) + '</pre>';
   }
 
   function renderFullPreview(fields) {

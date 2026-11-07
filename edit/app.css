@@ -378,6 +378,31 @@
 
 textarea { resize: vertical; width: 100%; }
 
+/* Notes: Markdown toolbar and Write / Preview tabs (notes.js) */
+.md-editor { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); overflow: hidden; }
+.md-editor:focus-within { border-color: var(--accent-dim); }
+.md-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; padding: 4px 6px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.md-tabs { display: flex; gap: 2px; }
+.md-tab, .md-tools button {
+  background: none; border: 1px solid transparent; border-radius: 4px; color: var(--text-muted);
+  font-size: 13px; padding: 3px 9px; cursor: pointer;
+}
+.md-tab.active { color: var(--text); background: var(--surface-2); border-color: var(--border); }
+.md-tools { display: flex; flex-wrap: wrap; gap: 2px; }
+.md-tools button { color: var(--text); min-width: 30px; padding: 3px 7px; }
+.md-tools button:hover:not(:disabled), .md-tab:hover { border-color: var(--border); }
+.md-tools button:disabled { opacity: 0.35; cursor: default; }
+.md-help { margin-left: auto; font-size: 12px; }
+#f-notes {
+  display: block; border: 0; border-radius: 0; background: var(--surface-2); color: var(--text);
+  font-family: var(--font-mono); font-size: 13px; line-height: 1.55; padding: 10px 12px; min-height: 180px;
+}
+#f-notes:focus { outline: none; }
+#f-notes[hidden], .md-preview[hidden] { display: none; }
+.md-preview { padding: 10px 14px; overflow: auto; background: var(--bg); }
+.md-preview > :last-child { margin-bottom: 0; }
+.md-empty { color: var(--text-muted); font-style: italic; }
+
 .admin-actions { display: flex; align-items: center; gap: 14px; }
 .save-status { font-size: 13px; color: var(--text-muted); }
 .save-status.error { color: #f87171; }
