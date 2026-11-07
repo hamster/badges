@@ -45,6 +45,131 @@ permalink: /edit/
     </div>
   </div>
 
+  <details id="tt-panel" class="tt-panel">
+    <summary class="tt-summary">
+      <span class="tt-title">Turntable</span>
+      <span id="tt-summary-status" class="tt-summary-status">Not connected</span>
+    </summary>
+    <div class="tt-body">
+      <div id="tt-perm" class="tt-perm" hidden></div>
+
+      <section class="tt-devices">
+        <div class="tt-devices-head">
+          <span class="tt-label">Phones</span>
+          <button type="button" id="tt-find" class="btn-secondary tt-small">Find phones</button>
+          <form id="tt-add-form" class="tt-add-form">
+            <input type="text" id="tt-add-host" placeholder="Add by name or IP, e.g. 192.168.1.23" spellcheck="false">
+            <input type="number" id="tt-add-port" value="8737" min="1" max="65535" title="Port">
+            <button type="submit" class="btn-secondary tt-small">Add</button>
+          </form>
+        </div>
+        <div id="tt-device-list" class="tt-device-list"></div>
+        <form id="tt-pair-form" class="tt-pair-form" hidden>
+          <div>Pair with <strong id="tt-pair-name"></strong>: type the 6-digit code shown on the phone's Capture screen.</div>
+          <div class="tt-row">
+            <input type="text" id="tt-pair-code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123 456">
+            <label class="tt-inline">This PC's name <input type="text" id="tt-client-name" maxlength="64"></label>
+            <button type="submit" class="btn-primary tt-small">Pair</button>
+            <button type="button" id="tt-pair-cancel" class="btn-secondary tt-small">Cancel</button>
+          </div>
+          <div id="tt-pair-error" class="field-warn" hidden></div>
+        </form>
+      </section>
+
+      <div id="tt-connected" class="tt-connected" hidden>
+        <div class="tt-grid">
+          <div class="tt-preview-col">
+            <div class="tt-preview-wrap">
+              <canvas id="tt-preview" class="tt-preview" width="640" height="480" title="Click to focus on that spot"></canvas>
+              <div id="tt-preview-msg" class="tt-preview-msg">Waiting for the preview…</div>
+              <div id="tt-countdown" class="tt-countdown" hidden></div>
+            </div>
+            <div class="tt-readout">
+              <span id="tt-angle" class="tt-angle"></span>
+              <span class="tt-readout-opts">
+                <label class="tt-inline"><input type="checkbox" id="tt-ov-ring" checked> Ring</label>
+                <label class="tt-inline"><input type="checkbox" id="tt-ov-grid"> Grid</label>
+              </span>
+            </div>
+            <fieldset id="tt-camera" class="tt-camera"></fieldset>
+          </div>
+
+          <div class="tt-side-col">
+            <section class="tt-box">
+              <h4>Turntable</h4>
+              <div id="tt-cal" class="tt-cal"></div>
+              <div class="tt-row">
+                <button type="button" id="tt-calibrate" class="btn-secondary tt-small">Calibrate</button>
+                <button type="button" id="tt-step" class="btn-secondary tt-small">Step 90°</button>
+                <button type="button" id="tt-home" class="btn-secondary tt-small">Home</button>
+            <button type="button" id="tt-front" class="btn-secondary tt-small" title="Make where the table is now the front: captures start here, and with a calibration it's where Home returns to">Set front</button>
+                <form id="tt-goto" class="tt-inline">
+                  <input type="number" id="tt-goto-deg" min="0" max="359" step="1" value="0" title="Table angle">°
+                  <button type="submit" class="btn-secondary tt-small">Go</button>
+                </form>
+              </div>
+              <details class="tt-test">
+                <summary>Test buttons</summary>
+                <div id="tt-roles" class="tt-row"></div>
+              </details>
+            </section>
+
+            <section class="tt-box">
+              <h4>Capture</h4>
+              <div class="tt-row tt-set-choice">
+                <label class="tt-inline"><input type="radio" name="tt-set" id="tt-set-main" checked> Main views</label>
+                <label class="tt-inline"><input type="radio" name="tt-set" id="tt-set-extra"> Extra set:</label>
+                <input type="text" id="tt-set-label" list="tt-set-labels" placeholder="e.g. With SAOs installed" maxlength="60">
+                <datalist id="tt-set-labels">
+                  <option value="With SAOs installed"></option>
+                  <option value="With minibadges installed"></option>
+                  <option value="Lit up"></option>
+                </datalist>
+              </div>
+              <div class="tt-row">
+                <button type="button" id="tt-auto-capture" class="btn-primary">Auto capture</button>
+                <button type="button" id="tt-capture-both" class="btn-secondary" title="The four stills, then the spin, with the phone telling you what to do with the table">Capture both</button>
+                <button type="button" id="tt-capture-stills" class="btn-secondary" title="The four stills: the phone tells you when to turn the table">Capture stills</button>
+                <button type="button" id="tt-capture-spin" class="btn-secondary" title="The spin video: the phone tells you when to start and stop the table">Capture spin</button>
+                <button type="button" id="tt-stop" class="tt-stop" hidden>■ Stop</button>
+              </div>
+              <div id="tt-capture-hint" class="tt-hint"></div>
+              <div id="tt-job" class="tt-job" hidden>
+                <div id="tt-job-text" class="tt-job-text"></div>
+                <progress id="tt-job-progress"></progress>
+              </div>
+              <div class="tt-sub">Extra shot <span class="hint">the table doesn't move</span></div>
+              <div id="tt-chips" class="tt-chips"></div>
+              <div class="tt-row">
+                <input type="text" id="tt-extra-other" placeholder="Label" maxlength="60" hidden>
+                <button type="button" id="tt-extra" class="btn-secondary tt-small">Extra shot</button>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <section class="tt-shots">
+          <div class="tt-shots-head">
+            <span class="tt-label">On the phone</span>
+            <span id="tt-shots-count" class="text-muted"></span>
+            <button type="button" id="tt-add-all" class="btn-primary tt-small">Add all to badge</button>
+            <button type="button" id="tt-clear-all" class="btn-secondary tt-small">Delete all on phone</button>
+          </div>
+          <div id="tt-shot-list" class="tt-shot-list"></div>
+        </section>
+      </div>
+
+      <div id="tt-notice" class="tt-notice" hidden></div>
+    </div>
+  </details>
+
+  <dialog id="tt-prompt" class="tt-prompt">
+    <div class="tt-prompt-title">Turntable</div>
+    <p id="tt-prompt-text"></p>
+    <div id="tt-prompt-dial" class="tt-prompt-dial" hidden></div>
+    <div id="tt-prompt-answers" class="tt-row"></div>
+  </dialog>
+
   <main class="admin-layout">
     <form id="badge-form" class="admin-form" autocomplete="off">
 
@@ -265,6 +390,16 @@ permalink: /edit/
         <button type="submit" id="save-btn" class="btn-primary">Save badge to disk</button>
         <span id="save-status" class="save-status"></span>
       </div>
+      <div id="tt-save-options" class="tt-save-options" hidden>
+        <label class="field-check">
+          <input type="checkbox" id="tt-save-originals">
+          <span>Also save the turntable originals and <code>session.json</code> to <code>_capture/&lt;con&gt;/&lt;slug&gt;/</code> (not published or committed)</span>
+        </label>
+        <label class="field-check">
+          <input type="checkbox" id="tt-clear-after" checked>
+          <span>Remove the saved shots from the phone afterwards</span>
+        </label>
+      </div>
     </form>
 
     <aside class="admin-preview">
@@ -287,4 +422,6 @@ permalink: /edit/
 </div>
 
 <link rel="stylesheet" href="./app.css">
+<link rel="stylesheet" href="./turntable.css">
 <script src="./app.js"></script>
+<script src="./turntable.js"></script>

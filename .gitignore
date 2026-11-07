@@ -7,3 +7,6 @@ Gemfile.lock
 *.DS_Store
 __pycache__/
 *.pyc
+
+# Full-resolution originals saved by the editor from the Badge Turntable app
+_capture/

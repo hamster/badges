@@ -618,6 +618,9 @@
   var dirty = false;
   var allBadgesList = [];
 
+  var saveHooks = [];   // async fn(ctx) run after a successful save; may return a message
+  var mediaHooks = [];  // fn() run whenever the fields or media lists change
+
   var ALLOW_BLANK = { edition: true, programming: true, rarity: true };
   var form = document.getElementById('badge-form');
 
@@ -1321,7 +1324,10 @@
     if (mode === 'raw') document.getElementById('preview-content').textContent = buildFrontmatter(collectFields());
   }
 
-  function scheduleFieldsChanged() { updateConditionalVisibility(); updateAutoSlug(); updatePreview(); }
+  function scheduleFieldsChanged() {
+    updateConditionalVisibility(); updateAutoSlug(); updatePreview();
+    mediaHooks.forEach(function (fn) { try { fn(); } catch (e) { console.error(e); } });
+  }
 
   // -------------------------------------------------------------------------
   // Browse panel
@@ -1648,6 +1654,18 @@
         resultEl.innerHTML = '<div>Wrote <code>_badges/' + esc(result.con) + '/' + esc(result.slug) + '/index.md</code>.</div>' +
           '<div>Run these yourself to commit:</div>' +
           '<pre>git add _badges/' + esc(result.con) + '/' + esc(result.slug) + '\ngit commit -m "' + (editingBadge ? 'Update' : 'Add') + ' badge: ' + esc(fields.title) + '"</pre>';
+        for (var h = 0; h < saveHooks.length; h++) {
+          try {
+            setStatus('Saved. Finishing up…', false);
+            // The live lists, not fields.images: those are copies without extra properties such as `tt`.
+            var msg = await saveHooks[h]({ con: result.con, slug: result.slug, repoDir: repoDir, images: images.slice(), videos: videos.slice() });
+            if (msg) resultEl.insertAdjacentHTML('beforeend', '<div>' + esc(msg) + '</div>');
+          } catch (hookErr) {
+            resultEl.insertAdjacentHTML('beforeend', '<div class="error">' + esc(hookErr.message || String(hookErr)) + '</div>');
+          }
+        }
+        setStatus('Saved.', false);
+        scheduleFieldsChanged();
       } catch (err) {
         setStatus(err.message || 'Save failed', true);
       } finally {
@@ -1655,6 +1673,42 @@
       }
     });
   }
+
+  // -------------------------------------------------------------------------
+  // Bridge for other editor scripts (turntable.js)
+  // -------------------------------------------------------------------------
+
+  window.BadgeEditor = {
+    // items: [{ kind: 'image'|'video', file: File, filename, caption, highlight, tt }]
+    // An item whose filename is already in the list replaces that entry in place
+    // (a re-shoot); others are appended. `highlight` is applied only when nothing
+    // else is highlighted, so an edited badge keeps its chosen hero image.
+    addMedia: function (items) {
+      items.forEach(function (it) {
+        var list = it.kind === 'video' ? videos : images;
+        var entry = { filename: it.filename, caption: it.caption || '', objectUrl: URL.createObjectURL(it.file), fileObject: it.file,
+                      originalFilename: null, highlight: false, error: null, tt: it.tt || null };
+        var idx = -1;
+        list.forEach(function (x, i) { if (x.filename === it.filename) idx = i; });
+        if (idx >= 0) {
+          var old = list[idx];
+          if (old.objectUrl && old.objectUrl.indexOf('blob:') === 0) URL.revokeObjectURL(old.objectUrl);
+          entry.highlight = !!old.highlight;
+          entry.originalFilename = old.originalFilename;
+          list[idx] = entry;
+        } else {
+          list.push(entry);
+        }
+        var anyHighlight = images.some(function (x) { return x.highlight; }) || videos.some(function (x) { return x.highlight; });
+        if (it.highlight && !anyHighlight) entry.highlight = true;
+      });
+      markDirty(); renderImageList(); renderVideoList(); scheduleFieldsChanged();
+    },
+    getMedia: function () { return { images: images.slice(), videos: videos.slice() }; },
+    isRepoOpen: function () { return !!repoDir; },
+    onSaved: function (fn) { saveHooks.push(fn); },
+    onMediaChanged: function (fn) { mediaHooks.push(fn); },
+  };
 
   // Check browser support on load
   if (!window.showDirectoryPicker) {

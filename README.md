@@ -45,6 +45,7 @@ _template/
   index.md          Blank badge template - copy this when adding manually
 
 edit/               Web editor - add/edit badges via File System Access API (Chrome/Edge)
+                    turntable.js/.css: the Turntable panel that drives the capture app
 
 badge/              Category landing page - type: badge
 sao/                Category landing page - type: sao
@@ -63,6 +64,12 @@ TODO.md             Pending work
 Open `https://hamster.github.io/badges/edit/` (or `http://localhost:4000/badges/edit/` during local dev) in Chrome or Edge, click **Open repo…**, and select your local clone of this repo. The editor writes badge files and photos straight to disk - nothing is committed or pushed automatically. Fill in the form, drag in photos, hit **Save badge to disk**, then `git add` / `git commit` / push as normal.
 
 The editor remembers your repo folder between sessions (IndexedDB). On your next visit a **Reopen [folder]…** button appears - one click re-grants access without navigating the directory picker again.
+
+#### Photographing with the turntable
+
+The editor's **Turntable** panel drives the Badge Turntable Android app ([hamster/badge-turntable](https://github.com/hamster/badge-turntable), a separate repo with the app, its spec, the encoder ring generator and the IR tools) over the local network: a phone on a tripod photographs the badge on an IR turntable from four sides and records a looping spin video. Pair the phone, frame the shot in the live preview, then use **Auto capture** (the phone turns the table) or the by-hand buttons, and **Add all to badge**. On **Save**, the shots go into the badge folder like dragged-in photos. Optionally, the full-resolution originals and a capture record go to `_capture/<con>/<slug>/`, which is git-ignored. How it works: [Spec.md](https://github.com/hamster/badge-turntable/blob/main/Spec.md#remote-control-from-the-editor) and [Remote-API.md](https://github.com/hamster/badge-turntable/blob/main/Remote-API.md) in that repo. `edit/turntable.js` is the client side of Remote-API.md, so change the two together.
+
+To try the panel without a phone (or without Ruby and Jekyll), check out badge-turntable beside this repo and run its mock phone: `python ../badge-turntable/badge-turntable/remote-mock/mock_phone.py` (needs Pillow). It also serves this repo's editor at `http://localhost:4000/badges/edit/`. See its [README](https://github.com/hamster/badge-turntable/blob/main/badge-turntable/remote-mock/README.md).
 
 ### Option B - copy the template manually
 
