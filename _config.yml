@@ -30,6 +30,3 @@ exclude:
   - README.md
   - TODO.md
   - vendor/
-  - apps/badge-turntable/
-  - apps/encoder-ring/package.json
-  - apps/encoder-ring/make-ring.mjs

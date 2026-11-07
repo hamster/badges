@@ -4,7 +4,7 @@ permalink: /badge-ids.json
 ---
 {%- comment -%}
   Every badge_id in use, for the Badge Turntable app to suggest a new ID that
-  doesn't collide (apps/Spec.md, "Badge ID").
+  doesn't collide (Spec.md in hamster/badge-turntable, "Badge ID").
 {%- endcomment -%}
 {%- assign with_ids = site.badges | where_exp: "b", "b.badge_id != nil and b.badge_id != ''" -%}
 [
