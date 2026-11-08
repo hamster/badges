@@ -1633,9 +1633,16 @@
     sel.value = c.source;
   }
 
+  // Notes typed on the phone are plain text. Two spaces at the end of a line
+  // make a Markdown line break, so they keep their lines on the badge page.
+  function phoneNotes(text) {
+    return (text || '').replace(/\r\n?/g, '\n').replace(/[ \t]+$/gm, '').replace(/([^\n])\n(?=[^\n])/g, '$1  \n');
+  }
+
   function useNotes(text) {
     var f = $('f-notes');
     if (!f) return;
+    text = phoneNotes(text);
     if (f.value.trim() && f.value.trim() !== text.trim() && !confirm('Replace the badge\'s notes with the session\'s?')) return;
     f.value = text;
     f.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1648,7 +1655,7 @@
     var c = conn, sess = c && c.sessionDetail[c.source];
     if (!sess || !window.BadgeEditor) return;
     if (!window.BadgeEditor.isRepoOpen()) { notice('Open the repo first.', 'error'); return; }
-    if (!window.BadgeEditor.startNew({ title: sess.name || '', notes: sess.notes || '' })) return;
+    if (!window.BadgeEditor.startNew({ title: sess.name || '', notes: phoneNotes(sess.notes) })) return;
     await addItems(trayItems());
   }
 

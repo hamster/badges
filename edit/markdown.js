@@ -3,7 +3,7 @@
 // rules where it matters: headings, emphasis, ~~strikethrough~~, code spans
 // and fenced code, block quotes, nested and task lists, tables, rules, links,
 // images and reference links. A single line break doesn't break the line
-// (end a line with two spaces or a backslash for that), and bare URLs aren't
+// (end a line with two spaces or two backslashes for that), and bare URLs aren't
 // linked. Raw HTML is shown as text, except a few simple tags such as <br>.
 //
 // window.BadgeMarkdown.render(src) -> HTML string
@@ -60,8 +60,9 @@
       if (/^ [\s\S]* $/.test(code) && code.trim()) code = code.slice(1, -1);
       return hold('<code>' + esc(code) + '</code>');
     });
-    // Hard line breaks: two spaces or a backslash at the end of a line.
-    s = s.replace(/(?: {2,}|\\)\n/g, function () { return hold('<br>') + '\n'; });
+    // Hard line breaks: two spaces or two backslashes at the end of a line
+    // (kramdown; a single backslash, as in CommonMark, stays a backslash there).
+    s = s.replace(/(?: {2,}|\\\\)\n/g, function () { return hold('<br>') + '\n'; });
     // Autolinks: <https://…> and <name@example.com>.
     s = s.replace(/<((?:https?|ftp):\/\/[^\s<>]+)>/gi, function (_, u) { return hold(linkHtml(u, '', esc(u))); });
     s = s.replace(/<(?:mailto:)?([^\s<>@]+@[^\s<>@]+\.[^\s<>@]+)>/gi, function (_, u) { return hold(linkHtml('mailto:' + u, '', esc(u))); });

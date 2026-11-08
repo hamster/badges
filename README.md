@@ -64,7 +64,7 @@ TODO.md             Pending work
 
 Open `https://hamster.github.io/badges/edit/` (or `http://localhost:4000/badges/edit/` during local dev) in Chrome or Edge, click **Open repo…**, and select your local clone of this repo. The editor writes badge files and photos straight to disk - nothing is committed or pushed automatically. Fill in the form, drag in photos, hit **Save badge to disk**, then `git add` / `git commit` / push as normal.
 
-The **Notes** box is the body of the badge's `index.md`, shown on the badge page under Notes. It takes Markdown (GitHub style, as Jekyll's kramdown renders it): the toolbar adds bold, italics, headings, links, lists, quotes and code (Ctrl+B, Ctrl+I and Ctrl+K work too), and **Preview** shows it as the badge page will. Plain text works as is; to break a line without starting a new paragraph, end it with two spaces or a backslash. Notes typed on the turntable phone arrive here as they were typed.
+The **Notes** box is the body of the badge's `index.md`, shown on the badge page under Notes. It takes Markdown (GitHub style, as Jekyll's kramdown renders it): the toolbar adds bold, italics, headings, links, lists, quotes and code (Ctrl+B, Ctrl+I and Ctrl+K work too), and **Preview** shows it as the badge page will. Plain text works as is; to break a line without starting a new paragraph, end it with two spaces. Notes typed on the turntable phone arrive here as they were typed, with two spaces added at the end of each line so their line breaks stay.
 
 The editor remembers your repo folder between sessions (IndexedDB). On your next visit a **Reopen [folder]…** button appears - one click re-grants access without navigating the directory picker again.
 
