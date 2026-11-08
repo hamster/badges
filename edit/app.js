@@ -1007,13 +1007,25 @@
     return btn;
   }
 
+  // The photo viewer (viewer.js): scaled to fit, a click for full size.
+  function viewImage(img) {
+    if (!window.BadgeViewer || !img || !img.objectUrl) return;
+    window.BadgeViewer.open({ kind: 'image', src: img.objectUrl, title: img.caption || img.filename,
+                              info: img.caption ? img.filename : '' });
+  }
+
   function renderImageList() {
     var container = document.getElementById('image-list'); container.innerHTML = '';
     images.forEach(function (img, idx) {
       var card = document.createElement('div');
       card.className = 'image-card' + (img.highlight ? ' highlighted' : '');
       card.draggable = true;
-      if (img.objectUrl) { var thumb = document.createElement('img'); thumb.src = img.objectUrl; card.appendChild(thumb); }
+      if (img.objectUrl) {
+        var thumb = document.createElement('img'); thumb.src = img.objectUrl;
+        thumb.title = 'Click to view it larger';
+        thumb.addEventListener('click', function () { viewImage(img); });
+        card.appendChild(thumb);
+      }
       var body = document.createElement('div'); body.className = 'image-card-body';
       body.appendChild(buildHighlightButton(img, 'image', idx));
       var nameInput = document.createElement('input'); nameInput.type = 'text'; nameInput.value = img.filename;
@@ -1276,6 +1288,10 @@
 
     var previewEl = document.getElementById('preview-render');
     previewEl.innerHTML = html;
+    var galleryImg = previewEl.querySelector('#preview-gallery-img');
+    if (galleryImg) galleryImg.addEventListener('click', function () {
+      viewImage(images.find(function (i) { return i.objectUrl === galleryImg.getAttribute('src'); }));
+    });
     previewEl.querySelectorAll('.gallery-thumb').forEach(function (thumb) {
       thumb.addEventListener('click', function () {
         var mainImg = previewEl.querySelector('#preview-gallery-img');

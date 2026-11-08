@@ -478,3 +478,37 @@ textarea { resize: vertical; width: 100%; }
   font-family: var(--font-mono); font-size: 12px; white-space: pre-wrap;
   margin-top: 8px; user-select: all;
 }
+
+/* ===== Photo viewer (viewer.js) ===== */
+dialog.viewer {
+  position: fixed; inset: 0; width: 100vw; height: 100vh; max-width: none; max-height: none;
+  margin: 0; padding: 0; border: none; background: rgba(8, 8, 10, 0.97); color: #eee;
+  display: flex; flex-direction: column;
+}
+dialog.viewer:not([open]) { display: none; }
+dialog.viewer::backdrop { background: rgba(0, 0, 0, 0.7); }
+html:has(dialog.viewer[open]) { overflow: hidden; }
+.viewer-bar {
+  flex: none; display: flex; align-items: center; gap: 16px;
+  padding: 10px 14px 10px 18px; background: #000; border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+.viewer-text { flex: 1; min-width: 0; }
+.viewer-title { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.viewer-info { font-size: 12px; color: #aaa; margin-top: 2px; font-family: var(--font-mono); }
+.viewer-close {
+  flex: none; font-size: 15px; font-weight: 700; padding: 9px 18px; border-radius: 8px;
+  border: 2px solid #fff; background: #fff; color: #111; cursor: pointer;
+}
+.viewer-close:hover { background: #ef4444; border-color: #ef4444; color: #fff; }
+.viewer-close:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.viewer-stage { flex: 1; min-height: 0; overflow: auto; display: flex; position: relative; overscroll-behavior: contain; }
+/* margin: auto centres it, and still lets a full-size picture scroll to every edge */
+.viewer-media { margin: auto; display: block; flex: none; max-width: none; max-height: none; user-select: none; }
+.viewer-media[hidden] { display: none; }
+.viewer-media.preview { filter: blur(3px); }
+.viewer-stage.zoomable .viewer-media { cursor: zoom-in; }
+.viewer-stage.full .viewer-media { cursor: zoom-out; }
+.viewer-stage.panning, .viewer-stage.panning .viewer-media { cursor: grabbing; }
+
+/* Photos that open in the viewer */
+.image-card > img, .gallery-main img { cursor: zoom-in; }

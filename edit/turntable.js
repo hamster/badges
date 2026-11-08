@@ -1909,7 +1909,9 @@
       if (s.bytes) meta.push(fmtBytes(s.bytes));
       var added = inBadge.has(s.key);
       list.appendChild(el('div', { class: 'tt-shot' + (added ? ' added' : '') + (s.ready ? '' : ' pending'), title: s.caption }, [
-        el('div', { class: 'tt-shot-thumb' }, [img, s.kind === 'video' ? el('span', { class: 'tt-shot-play', text: '▶' }) : null]),
+        el('div', { class: 'tt-shot-thumb' + (s.ready ? ' viewable' : ''), title: s.ready ? (s.kind === 'video' ? 'Click to play it' : 'Click to view it larger') : null,
+                    onclick: s.ready ? function () { viewItem(s, img); } : null },
+           [img, s.kind === 'video' ? el('span', { class: 'tt-shot-play', text: '▶' }) : null]),
         el('div', { class: 'tt-shot-caption', text: s.caption || s.filename }),
         el('div', { class: 'tt-shot-meta text-muted', text: meta.join(' · ') }),
         el('div', { class: 'tt-shot-actions' }, [
@@ -1924,6 +1926,18 @@
       ]));
     });
     renderSummary();
+  }
+
+  // The photo viewer (viewer.js), with the phone's web-size copy: the
+  // thumbnail shows while it downloads.
+  function viewItem(s, img) {
+    var c = conn;
+    if (!c || !window.BadgeViewer) return;
+    var meta = [s.caption ? s.filename : ''];
+    if (s.deg != null) meta.push(fmtDeg(s.deg));
+    if (s.bytes) meta.push(fmtBytes(s.bytes));
+    window.BadgeViewer.open({ kind: s.kind, title: s.caption || s.filename, info: meta.filter(Boolean).join(' · '),
+                              preview: img.getAttribute('src') || null, load: function () { return c.blob(s.path); } });
   }
 
   function loadThumb(s, img) {
