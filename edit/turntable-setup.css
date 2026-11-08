@@ -32,7 +32,7 @@
 /* The Capture screen guide */
 .ts-screen { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 4px 24px; padding: 0; list-style: none; }
 .ts-screen li { padding-left: 0; }
-.ts-shot { max-width: 100%; border-radius: var(--radius-lg); border: 1px solid var(--border); }
+.ts-shot { display: block; max-width: 100%; height: auto; border-radius: var(--radius-lg); border: 1px solid var(--border); }
 
 /* The calculator form */
 .ts-form { display: grid; gap: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }

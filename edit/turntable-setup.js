@@ -277,11 +277,34 @@ const view = $('ts-camera-view');
 const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 let theta = 20, lastDraw = 0, visible = true;
 
+// cameraViewSvg's drawing: the platter's centre, its radius across and the
+// half-height of its top ellipse, in the drawing's units.
+const XC = 160, YC = 70, RX = 130, RY = 26;
+
+// A badge standing at the platter's centre, turning with it: its front faces
+// ring angle 0, so it faces the camera at a table angle of 0. A point u along
+// the badge lands at platter direction 90° − θ, so the badge is drawn in its
+// own coordinates through an affine map: across it shrinks by cos θ, and
+// its base tilts with the platter's ellipse.
+function badgeSvg(deg) {
+  const t = (deg * Math.PI) / 180, c = Math.cos(t), s = Math.sin(t);
+  const m = `matrix(${c.toFixed(4)} ${((RY / RX) * s).toFixed(4)} 0 1 ${XC} ${YC - 2})`;
+  const front = c > 0;
+  return `<g transform="${m}">` +
+    `<rect x="-22" y="-56" width="44" height="56" rx="5" fill="${front ? '#2f6f4f' : '#24533c'}" stroke="#1d4a33" stroke-width="1.2" vector-effect="non-scaling-stroke"/>` +
+    `<rect x="-6" y="-53" width="12" height="3" rx="1.5" fill="#fff"/>` +
+    (front ? '<rect x="-14" y="-40" width="28" height="18" rx="2" fill="#173a2a"/><circle cx="-8" cy="-12" r="3" fill="#c8f7d8"/><circle cx="0" cy="-12" r="3" fill="#c8f7d8"/><circle cx="8" cy="-12" r="3" fill="#c8f7d8"/>' : '') +
+    '</g>';
+}
+
 function drawView() {
   if (!current) return;
   let svg = cameraViewSvg(current.plan, theta);
   // The illustration draws a white band; show a black one as it'll look.
   if (current.plan.invert) svg = svg.replace('fill="#fafafa"', 'fill="#161616"').replace('fill="#111"', 'fill="#f2f2f2"');
+  // Its badge stands still: swap it for one that turns with the table, under the camera axis line.
+  svg = svg.split('\n').filter((l) => !/^<rect x="[\d.-]+" y="[\d.-]+" width="(44|12|28)"/.test(l)).join('\n')
+    .replace(/(<path [^>]*stroke="#d33")/, badgeSvg(theta) + '$1');
   view.innerHTML = svg;
 }
 
