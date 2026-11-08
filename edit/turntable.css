@@ -59,6 +59,7 @@
 }
 .tt-body input[type=number] { width: 72px; }
 .tt-body button:disabled { opacity: 0.45; cursor: not-allowed; }
+.tt-setup-link { margin: 0 0 10px; font-size: 13px; }
 
 .tt-perm[hidden], .tt-notice[hidden], .tt-pair-form[hidden], .tt-connected[hidden], .tt-pair-form .field-warn[hidden] { display: none; }
 .tt-perm {

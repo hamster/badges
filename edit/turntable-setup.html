@@ -1,0 +1,206 @@
+---
+layout: default
+title: "Setting up the turntable"
+permalink: /edit/turntable-setup/
+---
+<link rel="stylesheet" href="{{ '/edit/turntable-setup.css' | relative_url }}">
+
+<div class="ts-page">
+  <p class="ts-back"><a href="{{ '/edit/' | relative_url }}">← Back to the editor</a></p>
+  <h1 class="text-accent font-mono">Setting up the turntable</h1>
+  <p class="ts-lede">The badge photos on this site are taken on a motorised turntable in a light box, by the <a href="https://github.com/hamster/badge-turntable" target="_blank" rel="noopener"><strong>Badge Turntable</strong></a> Android app. A printed band of markers round the turntable's rim tells the app exactly which way the badge is facing. This page explains how that works, makes the marker band and a platter sticker for your turntable, and walks through setting it all up.</p>
+
+  <nav class="ts-toc">
+    <a href="#how">How it works</a>
+    <a href="#app">The app</a>
+    <a href="#make">Make the band and sticker</a>
+    <a href="#fit">Fit them</a>
+    <a href="#setup">Set up the app and editor</a>
+    <a href="https://github.com/hamster/badge-turntable" target="_blank" rel="noopener">The app on GitHub ↗</a>
+  </nav>
+
+  <section id="how">
+    <h2>How it works</h2>
+    <figure class="ts-figure">
+      <div id="ts-camera-view" class="ts-camera-view" aria-label="The turntable as the camera sees it, turning, with the marker band round its rim"></div>
+      <figcaption>What the phone sees: the badge on the platter and the marker band round the rim, drawn from your measurements below. The red line is the camera's axis.</figcaption>
+    </figure>
+
+    <h3>The setup</h3>
+    <ul>
+      <li><strong>A turntable with an IR remote</strong>, such as the JAYEGT 5.74 in display stand. The phone presses its remote's buttons with its own IR blaster (the OnePlus 13 and 9 Pro have one). A turntable with no remote works too: you start and stop it yourself, or turn the badge by hand.</li>
+      <li><strong>A light box</strong>, so every photo has the same even light and plain background.</li>
+      <li><strong>The phone on a tripod</strong>, looking at the badge and the front of the rim.</li>
+      <li><strong>The marker band</strong> round the rim, and optionally a <strong>sticker</strong> on the platter's top to place badges centred and square. Both are made <a href="#make">below</a>.</li>
+    </ul>
+
+    <h3>The markers</h3>
+    <p>The band is a row of <a href="https://docs.opencv.org/4.x/d5/dae/tutorial_aruco_detection.html" target="_blank" rel="noopener">ArUco markers</a>: small black-and-white square codes that the app finds in the camera picture with OpenCV. Each marker is a 4×4 grid of bits inside a black border, and every marker on the band has a different code (from OpenCV's <code>DICT_4X4_50</code>). Marker <em>k</em> sits at <em>k</em> × <em>step</em> degrees round the rim, where the step is 360° divided by the number of markers. So a 36-marker band has a marker every 10°, and marker 0 is 0°.</p>
+    <p>Because every marker is different, the band is an <strong>absolute</strong> encoder: any single frame tells the app where the table is, without counting from a starting point. That lets the app check that every move really happened, stop the table at an angle, take the stills as the right angles come past, and cut the spin video to exactly one turn so it loops cleanly.</p>
+
+    <h3>From markers to an angle</h3>
+    <p>A marker at angle α round the rim, with the table turned to θ, appears sideways from the turntable's axis by the sine of the difference: <code>x = x<sub>axis</sub> + R·sin(α − θ)</code>. The app doesn't need to know where the axis is in the picture, or how big the rim looks: with three or more markers in view, a least-squares fit finds the axis, the radius and the angle together, in every frame. So zooming, refocusing or nudging the phone doesn't upset it. With five or more, it also allows for perspective, since the camera is close. In tests, the angle comes out within about 0.1°.</p>
+    <p>The band can be printed white with black markers, or <strong>black with white markers</strong> so it disappears against a black rim in the photos. The app reads either.</p>
+
+    <h3>Calibration</h3>
+    <p>The band gives the angle; calibration learns how the <em>turntable</em> moves. The app turns the table at least once round and measures its speed and direction, how far it coasts after a stop, and whether the band was put on upside down. It then brings the table back to the front. Calibration is only needed when the app drives the table itself (<strong>Auto table</strong>); capturing by hand needs none.</p>
+  </section>
+
+  <section id="app">
+    <h2>The app</h2>
+    <ul>
+      <li><strong>Sessions.</strong> Each badge is a session on the phone: a name, optional notes, and its photos and video. The rest of the badge's details (con, year, maker and so on) are filled in here in the editor.</li>
+      <li><strong>The capture.</strong> One capture takes four stills, the front, both sides and the back (0°, 90°, 180° and 270° from the front), and an optional 360° spin video that loops on the badge's page. Exposure, focus and white balance are locked so all the shots match.</li>
+      <li><strong>Moving shots</strong> (the default). The table turns slowly and each still is taken as its angle comes past, read off the band. Then the table speeds up for the spin video, and returns to the front. With IR and <strong>Auto table</strong>, the app does all of it; otherwise it tells you when to start and stop the table.</li>
+      <li><strong>By hand.</strong> The app asks for each view in turn, and you turn the table, or the badge, and press <strong>Capture</strong>. No band, IR or turntable needed. If the band is in view, the angle is still shown and recorded.</li>
+      <li><strong>Extra shots.</strong> Single photos with a label (lanyard, add-ons installed, detail, lit up, packaging), taken without moving the table. An <strong>extra set</strong> repeats the whole capture under a label, such as with SAOs installed.</li>
+      <li><strong>Remote control.</strong> The editor's <strong>Turntable</strong> panel drives the phone over your local network: a live preview, camera controls, calibration and capture, and it saves the photos straight into the badge you're editing. After pairing once with a code shown on the phone, the connection is encrypted end to end.</li>
+    </ul>
+
+    <h3>The Capture screen</h3>
+    <ul class="ts-screen">
+      <li><strong>Across the top:</strong> the phone's name and address, and the pairing code for the editor, while remote control is on.</li>
+      <li><strong>The readout</strong> (top left): the ring angle, how many markers it can read, and how far the badge is turned from the front.</li>
+      <li><strong>Set front:</strong> makes the way the badge faces now the front, 0°.</li>
+      <li><strong>Side bars:</strong> drag the handles in from the sides to paint over the light box's edges, for a narrow badge.</li>
+      <li><strong>Zoom, EV and WB:</strong> zoom, exposure and white balance. Turn EV down if markers go missing in a bright box.</li>
+      <li><strong>On the preview:</strong> a grid, a line that turns green when the turntable's axis is centred, and a box round the band with each marker it found outlined.</li>
+      <li><strong>The badge button</strong> (top right): the open session, or pick one.</li>
+      <li><strong>Moving shots</strong> and <strong>Auto table:</strong> how the four views are taken (see above), and whether the app drives the table with IR.</li>
+      <li><strong>Calibrate, Extra shot, Capture:</strong> calibration (for Auto table), a single labelled shot, and the capture itself.</li>
+      <li><strong>Along the bottom:</strong> what to do next.</li>
+    </ul>
+  </section>
+
+  <section id="make">
+    <h2>Make the band and sticker</h2>
+    <p>Measure your turntable and choose your printer. The preview updates as you type, and the numbers are kept for next time.</p>
+
+    <form id="ts-form" class="ts-form" autocomplete="off">
+      <fieldset>
+        <legend>Your turntable</legend>
+        <label>Turntable
+          <select name="preset">
+            <option value="jayegt" selected>JAYEGT 5.74 in</option>
+            <option value="custom">My own measurements</option>
+          </select>
+        </label>
+        <label>Measure the rim by
+          <select name="measure">
+            <option value="circumference">Circumference (most accurate)</option>
+            <option value="diameter">Diameter</option>
+          </select>
+        </label>
+        <label><span><span id="ts-size-label">Rim circumference</span> (mm)</span>
+          <input name="size" type="number" min="20" step="0.1" value="456.5" required>
+        </label>
+        <label>Band height (mm)
+          <input name="height" type="number" min="4" step="0.1" value="9.5" required>
+        </label>
+        <label>Platter top diameter (mm)
+          <input name="platter" type="number" min="20" step="0.1" value="145.3" placeholder="Same as the rim">
+        </label>
+        <label class="ts-check"><input name="invert" type="checkbox" checked> Black band (for a black rim)</label>
+      </fieldset>
+      <fieldset>
+        <legend>Print on</legend>
+        <label class="ts-radio"><input type="radio" name="output" value="letter" checked> US Letter paper</label>
+        <label class="ts-radio"><input type="radio" name="output" value="a4"> A4 paper</label>
+        <label class="ts-radio"><input type="radio" name="output" value="label203"> 4×6 in label printer, 203 dpi</label>
+        <label class="ts-radio"><input type="radio" name="output" value="label300"> 4×6 in label printer, 300 dpi</label>
+      </fieldset>
+      <details class="ts-advanced">
+        <summary>More settings</summary>
+        <div class="ts-advanced-body">
+          <label>Number of markers
+            <input name="count" type="number" min="4" step="1" placeholder="Automatic">
+          </label>
+          <label>Longest strip (mm)
+            <input name="strip" type="number" min="10" step="1" placeholder="Fit the page">
+          </label>
+          <label>Sticker inset (mm)
+            <input name="inset" type="number" min="0" step="0.5" value="1">
+          </label>
+        </div>
+      </details>
+    </form>
+
+    <div class="ts-measure-help">
+      <strong>Measuring:</strong>
+      <span><b>Circumference:</b> wrap a strip of paper round the rim, mark where it overlaps, and measure it flat. It's more accurate than the diameter.</span>
+      <span><b>Band height:</b> the height of the rim's flat face that the camera sees, a little less than all of it so the band doesn't overhang.</span>
+      <span><b>Platter top:</b> across the top surface, for the sticker. Leave it empty to use the rim's size.</span>
+    </div>
+
+    <div id="ts-error" class="ts-error" hidden></div>
+
+    <div id="ts-stats" class="ts-stats"></div>
+
+    <div class="ts-output">
+      <div class="ts-output-head">
+        <h3>Marker band</h3>
+        <div class="ts-actions">
+          <button type="button" id="ts-print-band" class="btn-primary">Print band</button>
+          <button type="button" id="ts-svg-band" class="btn-secondary">Download SVG</button>
+          <button type="button" id="ts-zpl" class="btn-secondary" hidden>Download ZPL</button>
+          <button type="button" id="ts-copy-zpl" class="btn-secondary" hidden>Copy ZPL</button>
+        </div>
+      </div>
+      <p id="ts-band-note" class="ts-note"></p>
+      <div id="ts-band-preview" class="ts-preview"></div>
+    </div>
+
+    <div class="ts-output">
+      <div class="ts-output-head">
+        <h3>Platter sticker</h3>
+        <div class="ts-actions">
+          <button type="button" id="ts-print-sticker" class="btn-primary">Print sticker</button>
+          <button type="button" id="ts-svg-sticker" class="btn-secondary">Download SVG</button>
+        </div>
+      </div>
+      <p id="ts-sticker-note" class="ts-note"></p>
+      <div id="ts-sticker-preview" class="ts-preview"></div>
+    </div>
+
+    <h3>Printing</h3>
+    <ul>
+      <li><strong>Paper:</strong> print at <strong>100% / Actual size</strong>, never "Fit to page", and check the 100 mm bar with a ruler before cutting. Matte paper or matte sticker paper works best: gloss reflects the light box's LEDs and washes the markers out.</li>
+      <li><strong>Label printer:</strong> <strong>Print band</strong> sends the labels through the printer's driver at 4×6 in. Or download the ZPL, which draws every marker cell in the printer's own dots, and send it straight to the printer: Zebra Setup Utilities → Send File, or on a network printer <code>nc &lt;printer-ip&gt; 9100 &lt; ring.zpl</code>. After loading new labels, let the printer measure them first (its calibrate function, or send <code>~JC</code>).</li>
+      <li><strong>Black band on a thermal printer:</strong> raise the darkness if the black comes out grey.</li>
+      <li><strong>The sticker</strong> is made for a cutter's Print &amp; Cut (Silhouette Cameo and similar): open the SVG in the cutter's software, turn on its registration marks, set only the red circle to cut, then print at 100% on sticker paper and cut. Or print it and cut round the circle with scissors.</li>
+    </ul>
+  </section>
+
+  <section id="fit">
+    <h2>Fit them</h2>
+    <ol>
+      <li>Clean the rim so the band sticks flat.</li>
+      <li>Cut each strip on its corner marks. The marks for the two cuts at each corner cross, so cut along the line through them; the cuts can go in any order.</li>
+      <li>Put <strong>strip 1</strong> on first, caption edge up and markers upright, with its first marker roughly where the badge's front will face. The exact front is set later in the app.</li>
+      <li>Add the other strips in order, each butted against the last with no gap and no overlap.</li>
+      <li>The last strip should meet the start of strip 1. A millimetre or two either way is fine. If it's more, reprint with the corrected size below: it allows for your printer's scale and your measuring at once, because it's based on what actually printed.</li>
+      <li>Stick the platter sticker on with its red 0° line toward the camera, once the table is at its front (after <strong>Set front</strong>, below).</li>
+    </ol>
+    <div class="ts-fix">
+      <label>Gap left where the band meets (mm, minus for an overlap)
+        <input id="ts-gap" type="number" step="0.1" placeholder="e.g. 4.5">
+      </label>
+      <div id="ts-fix-result" class="ts-fix-result"></div>
+      <button type="button" id="ts-fix-use" class="btn-secondary" hidden>Use this size</button>
+    </div>
+  </section>
+
+  <section id="setup">
+    <h2>Set up the app and editor</h2>
+    <ol>
+      <li><strong>Install <a href="https://github.com/hamster/badge-turntable" target="_blank" rel="noopener">Badge Turntable</a></strong> on the phone (the source and how to build it are on GitHub), put the phone on the tripod and open the <strong>Capture</strong> screen. Frame the badge closely with the front of the band in view: the closer, the smaller the markers can be.</li>
+      <li><strong>Settings → Turntable:</strong> choose your turntable. The JAYEGT 5.74 in is built in. For another one, choose <strong>Custom</strong> and give it the remote's codes (from a Flipper <code>.ir</code> file, a USB IR receiver, or typed in), and use each button's <strong>Test</strong>. With no remote, choose <strong>None</strong>.</li>
+      <li><strong>Check the band:</strong> turn the table by hand and watch the angle on the preview. It should rise smoothly with no jumps. If markers aren't found, turn the exposure down (about −2 EV) or add light: an over-bright band washes out.</li>
+      <li><strong>Calibrate</strong> (if the app will drive the table). Keep the turntable on USB power: a flat battery slows the motor and loses its home position.</li>
+      <li><strong>Set front:</strong> turn the table so the badge faces the camera and press <strong>Set front</strong>. Captures start there, and the table returns there afterwards.</li>
+      <li><strong>Connect the editor:</strong> on the phone, turn on <strong>Settings → Remote control</strong>. Here, open your copy of the repo in <a href="{{ '/edit/' | relative_url }}">the editor</a>, open the <strong>Turntable</strong> panel, click <strong>Find phones</strong> (allow the browser to reach your local network), and pair with the 6-digit code from the phone's banner. After that it connects by itself, encrypted.</li>
+    </ol>
+  </section>
+</div>
+
+<script type="module" src="{{ '/edit/turntable-setup.js' | relative_url }}"></script>

@@ -1,0 +1,85 @@
+/* Turntable setup page (edit/turntable-setup.html). Site colours from main.css. */
+
+.ts-page { max-width: 980px; margin: 0 auto; line-height: 1.6; }
+.ts-page h1 { margin: 8px 0 8px; }
+.ts-page h2 { margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.ts-page h3 { margin: 24px 0 8px; font-size: 1.05rem; }
+.ts-page section { scroll-margin-top: 16px; }
+.ts-page li { margin-bottom: 6px; }
+.ts-back { margin: 0; font-size: 14px; }
+.ts-lede { color: var(--text-muted); font-size: 1.05rem; }
+
+.ts-toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 8px; }
+.ts-toc a { padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); font-size: 14px; }
+
+/* Buttons, as in the editor (edit/app.css) */
+.ts-page .btn-primary, .ts-page .btn-secondary {
+  border-radius: var(--radius); font: inherit; font-size: 13px; padding: 8px 16px; cursor: pointer; border: 1px solid var(--border);
+}
+.ts-page .btn-secondary { background: var(--surface-2); color: var(--text); }
+.ts-page .btn-secondary:hover { border-color: var(--text-muted); }
+.ts-page .btn-primary { background: var(--accent-dim); color: #eafff0; border-color: var(--accent-dim); font-weight: 600; }
+.ts-page .btn-primary:hover { opacity: 0.9; }
+.ts-page button:disabled { opacity: 0.5; cursor: not-allowed; }
+.ts-page button[hidden] { display: none; }
+
+/* The turning illustration */
+.ts-figure { margin: 8px 0 16px; }
+.ts-camera-view { max-width: 640px; border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border); background: #fff; aspect-ratio: 320 / 140; }
+.ts-camera-view svg { display: block; width: 100%; height: auto; }
+.ts-figure figcaption { color: var(--text-muted); font-size: 13px; margin-top: 6px; }
+
+/* The Capture screen guide */
+.ts-screen { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 4px 24px; padding: 0; list-style: none; }
+.ts-screen li { padding-left: 0; }
+.ts-shot { max-width: 100%; border-radius: var(--radius-lg); border: 1px solid var(--border); }
+
+/* The calculator form */
+.ts-form { display: grid; gap: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
+.ts-form fieldset { border: 0; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px 16px; }
+.ts-form legend { font-weight: 600; margin-bottom: 8px; padding: 0; }
+.ts-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-muted); }
+.ts-form label.ts-check, .ts-form label.ts-radio { flex-direction: row; align-items: center; gap: 8px; color: var(--text); font-size: 14px; }
+.ts-form label.ts-check { align-self: end; padding-bottom: 8px; }
+.ts-form input[type="number"], .ts-form select, .ts-fix input {
+  font: inherit; font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 8px; min-width: 0;
+}
+.ts-form input:focus, .ts-form select:focus, .ts-fix input:focus { outline: none; border-color: var(--accent); }
+.ts-advanced summary { cursor: pointer; color: var(--text-muted); font-size: 14px; }
+.ts-advanced-body { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px 16px; margin-top: 12px; }
+
+.ts-measure-help { display: grid; gap: 4px; margin: 12px 0 0; font-size: 13px; color: var(--text-muted); }
+.ts-measure-help b { color: var(--text); font-weight: 600; }
+
+.ts-error { margin: 12px 0 0; padding: 10px 12px; border: 1px solid #f85149; border-radius: var(--radius); color: #ffa198; background: rgba(248, 81, 73, 0.1); }
+
+.ts-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin: 16px 0; }
+.ts-stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; display: flex; flex-direction: column; }
+.ts-stat-value { font-family: var(--font-mono); font-size: 1.1rem; color: var(--accent); }
+.ts-stat-label { font-size: 12px; color: var(--text-muted); }
+
+.ts-output { margin: 20px 0; }
+.ts-output-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.ts-output-head h3 { margin: 0; }
+.ts-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ts-note { color: var(--text-muted); font-size: 13px; margin: 6px 0 10px; min-height: 1em; }
+.ts-preview { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.ts-sheet { background: #fff; border-radius: 4px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); overflow: hidden; }
+.ts-sheet svg { display: block; width: 100%; height: auto; }
+.ts-sheet.paper { width: 100%; max-width: 760px; }
+.ts-sheet.label { width: 300px; }
+
+.ts-fix { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 12px 16px; }
+.ts-fix label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-muted); }
+.ts-fix input { width: 160px; }
+.ts-fix-result { flex: 1; min-width: 200px; padding-bottom: 8px; }
+
+/* Printing: only the sheets, at their real size. The @page size is set when printing. */
+#ts-print-area { display: none; }
+@media print {
+  body > :not(#ts-print-area) { display: none !important; }
+  body { background: #fff; margin: 0; }
+  #ts-print-area { display: block; }
+  #ts-print-area svg { display: block; break-after: page; }
+  #ts-print-area svg:last-child { break-after: auto; }
+}

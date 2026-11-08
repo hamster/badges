@@ -1,0 +1,520 @@
+// Copied unchanged from hamster/badge-turntable, encoder-ring/ring.js (commit c4b642d).
+// The app reads this ring, so change it there and copy it here, not the other way.
+//
+// Encoder ring generator for Badge Turntable.
+//
+// The ring is a band of ArUco markers (OpenCV's DICT_4X4_50/100/250) wrapped
+// around the turntable rim. Marker k sits at k * (360 / count) degrees, so any
+// three visible markers give the table's absolute angle. See README.md.
+//
+// Shared by index.html (browser) and make-ring.mjs (Node). No dependencies.
+
+// First 250 codes of OpenCV's DICT_4X4_1000 (DICT_4X4_50/100/250 are prefixes
+// of it). Each is the marker's 4x4 inner bits, row-major, MSB first, 1 = white.
+export const DICT_4X4 = [
+  46386, 3994, 13101, 39238, 21662, 31181, 40494, 50418, 65242, 53078, 63889, 4519,
+  3767, 10767, 9393, 9790, 18021, 26112, 27742, 30383, 34443, 45099, 52437, 56706,
+  65095, 38001, 44260, 42324, 8483, 13423, 17429, 22450, 40655, 61643, 2222, 2345,
+  6261, 1279, 3574, 7258, 5912, 10792, 12940, 14514, 9448, 12011, 11583, 19300,
+  20526, 20499, 20884, 21864, 23873, 24471, 26625, 26727, 24868, 25065, 27410, 28645,
+  26591, 32283, 32928, 33604, 35746, 37754, 33900, 34090, 34204, 40073, 40865, 47996,
+  48132, 46683, 49096, 47019, 51743, 51554, 55640, 54229, 52376, 51104, 50487, 59741,
+  63781, 64443, 60970, 63309, 13685, 35501, 30231, 2767, 1611, 11713, 18904, 17396,
+  20278, 20435, 27108, 28871, 31342, 46314, 60751, 64743, 65190, 37, 67, 2696,
+  2694, 623, 28, 151, 2103, 2609, 2502, 2817, 2555, 2904, 4226, 6189,
+  4216, 4211, 4724, 4785, 6905, 4870, 3086, 3313, 1075, 3231, 3826, 3837,
+  1868, 4004, 1839, 1461, 3985, 2011, 7908, 5177, 7552, 5576, 8075, 5562,
+  7601, 8320, 10473, 8866, 10323, 10992, 8951, 10560, 8518, 10681, 11164, 11186,
+  14538, 14382, 12295, 14567, 14921, 14949, 12893, 15240, 14621, 15315, 9799, 10112,
+  12202, 11540, 9694, 9555, 12151, 13384, 15528, 15425, 13325, 13563, 13978, 15840,
+  13674, 15625, 15853, 16324, 16236, 14286, 15708, 15734, 14256, 16151, 16383, 18661,
+  17000, 18989, 16736, 18769, 16861, 19423, 22607, 23112, 22550, 20573, 23290, 23221,
+  20771, 23434, 22809, 20789, 19561, 18113, 19979, 17503, 20057, 19843, 19837, 18392,
+  18291, 23685, 24132, 22059, 23739, 21955, 24430, 24555, 23826, 21854, 25200, 25109,
+  25026, 27424, 25413, 27484, 27483, 30732, 31439, 30847, 31104, 29157, 29044, 31158,
+  29139, 31539, 25706, 26280, 28327, 28305, 25890, 28107, 26509, 27953,
+];
+
+export const DICTIONARIES = { '4X4_50': 50, '4X4_100': 100, '4X4_250': 250 };
+
+// Marker counts that divide 360 evenly, so every marker sits on a whole-degree angle.
+const NICE_COUNTS = [180, 120, 90, 72, 60, 45, 40, 36, 30, 24, 20, 18, 15, 12, 10, 9, 8, 6, 5, 4];
+
+// Page sizes in mm, landscape so strips run along the long edge.
+export const PAPER = {
+  letter: { w: 279.4, h: 215.9, name: 'US Letter' },
+  a4: { w: 297, h: 210, name: 'A4' },
+};
+
+// 4x6 in shipping label: w runs across the print head, h along the feed.
+export const LABEL = { w: 101.6, h: 152.4 };
+
+const PAPER_MARGIN = 12;
+const PAPER_HEADER = 16;
+const PAPER_FOOTER = 16;
+const PAPER_CAPTION = 4.5;
+const PAPER_ROW_GAP = 5;
+const LABEL_MARGIN = 4;
+const LABEL_CAPTION = 3.5;
+const CROP = 2.5;
+// Inverted (black) bands print this far past every cut line, so a slightly off cut
+// still leaves black at the edge instead of a white sliver.
+const BLEED = 1;
+
+// 6x6 grid for one marker, true = black. The outer ring is the black border;
+// the inner 4x4 holds the code bits.
+export function markerGrid(id) {
+  const code = DICT_4X4[id];
+  const grid = [];
+  for (let r = 0; r < 6; r++) {
+    const row = [];
+    for (let c = 0; c < 6; c++) {
+      if (r === 0 || r === 5 || c === 0 || c === 5) {
+        row.push(true);
+      } else {
+        const bit = 15 - ((r - 1) * 4 + (c - 1));
+        row.push(((code >> bit) & 1) === 0);
+      }
+    }
+    grid.push(row);
+  }
+  return grid;
+}
+
+// Works out marker size, count and spacing for a rim.
+//   circumference or diameter (mm), height: usable rim band height (mm),
+//   count: optional fixed marker count, dictSize: 50 | 100 | 250.
+export function planRing(opts) {
+  const circumference = opts.circumference > 0 ? opts.circumference : Math.PI * opts.diameter;
+  const height = opts.height;
+  const dictSize = opts.dictSize || 50;
+  if (!(circumference > 0)) throw new Error('Enter the rim circumference or diameter.');
+  if (!(height > 0)) throw new Error('Enter the band height.');
+
+  // A marker is 6 cells; the band adds a one-cell quiet zone above and below.
+  const cell = height / 8;
+  const marker = cell * 6;
+  // Neighbouring markers need at least two cells of white between them.
+  const minPitch = marker + cell * 2;
+
+  let count = opts.count > 0 ? Math.round(opts.count) : 0;
+  if (!count) {
+    count = NICE_COUNTS.find((n) => n <= dictSize && circumference / n >= minPitch) || 0;
+    if (!count) throw new Error('The band is too tall for this rim: fewer than 4 markers fit. Use a smaller band height.');
+  }
+  if (count > dictSize) throw new Error(`${count} markers needs a bigger dictionary than DICT_4X4_${dictSize}.`);
+  if (count < 4) throw new Error('Use at least 4 markers.');
+  if (circumference / count < minPitch) {
+    const max = Math.floor(circumference / minPitch);
+    throw new Error(`${count} markers won't fit at this band height (max ${max}).`);
+  }
+
+  return {
+    circumference,
+    diameter: circumference / Math.PI,
+    height,
+    cell,
+    marker,
+    pitch: circumference / count,
+    count,
+    step: 360 / count,
+    dictSize,
+    // Optional cap on strip length (mm). Shorter strips sit flatter on a tapered rim.
+    maxStrip: opts.maxStrip > 0 ? opts.maxStrip : Infinity,
+    // Black band with white-bordered (inverted) markers, to blend with a black rim.
+    // The detector needs detectInvertedMarker on. The quiet cells become black margin.
+    invert: !!opts.invert,
+    bleed: opts.invert ? BLEED : 0,
+  };
+}
+
+export function markerAngle(plan, id) {
+  return id * plan.step;
+}
+
+// Splits the ring into strips no longer than maxLen. Each marker sits centred in
+// its own pitch-long slot, so strips butted end to end keep the pitch, and the
+// ring's 0° is the centre of marker 0 (half a step after strip 1's left end).
+export function splitStrips(plan, maxLen) {
+  const perMax = Math.floor(Math.min(maxLen, plan.maxStrip ?? Infinity) / plan.pitch);
+  if (perMax < 1) throw new Error('One marker is longer than the strip length available.');
+  const stripCount = Math.ceil(plan.count / perMax);
+  const per = Math.ceil(plan.count / stripCount);
+  const strips = [];
+  for (let s = 0; s < stripCount; s++) {
+    const ids = [];
+    for (let id = s * per; id < Math.min(plan.count, (s + 1) * per); id++) ids.push(id);
+    strips.push({ index: s, total: stripCount, ids, length: ids.length * plan.pitch });
+  }
+  return strips;
+}
+
+// Black rectangles for one strip in strip coordinates (mm): u runs along the
+// strip left to right, v runs down from the strip's top edge. Runs of black
+// cells in a row are merged into one rectangle.
+export function stripRects(plan, ids) {
+  const rects = [];
+  ids.forEach((id, i) => {
+    const u0 = i * plan.pitch + (plan.pitch - plan.marker) / 2;
+    const v0 = plan.cell;
+    const grid = markerGrid(id);
+    for (let r = 0; r < 6; r++) {
+      let c = 0;
+      while (c < 6) {
+        if (!grid[r][c]) { c++; continue; }
+        let end = c;
+        while (end < 6 && grid[r][end]) end++;
+        rects.push({ u: u0 + c * plan.cell, v: v0 + r * plan.cell, w: (end - c) * plan.cell, h: plan.cell });
+        c = end;
+      }
+    }
+  });
+  return rects;
+}
+
+function fmtAngle(a) {
+  return Number.isInteger(a) ? String(a) : a.toFixed(1);
+}
+
+export function stripCaption(plan, strip, ascii) {
+  const first = strip.ids[0];
+  const last = strip.ids[strip.ids.length - 1];
+  const deg = ascii ? ' deg' : '°';
+  let text = `Strip ${strip.index + 1}/${strip.total}  markers ${first}-${last}  ` +
+    `${fmtAngle(markerAngle(plan, first))}-${fmtAngle(markerAngle(plan, last))}${deg}`;
+  if (strip.index === 0) text += '  (0' + deg + ' start)';
+  return text;
+}
+
+export function summary(plan) {
+  return `${plan.count} markers x ${fmtAngle(plan.step)}°  |  rim ${plan.diameter.toFixed(1)} mm dia, ` +
+    `${plan.circumference.toFixed(1)} mm around  |  band ${plan.height} mm, marker ${plan.marker.toFixed(1)} mm  |  ` +
+    `ArUco DICT_4X4_${plan.dictSize}` + (plan.invert ? '  |  black band, inverted markers' : '');
+}
+
+const r2 = (n) => Math.round(n * 1000) / 1000;
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+// How far each crop mark runs past its corner, along the strip edge. The marks for
+// the two cuts at a corner cross there, so after either cut a stub of the other mark
+// is left on the strip to show where the next cut goes. The stub lies on the cut line,
+// so a clean cut removes it. What's left of it is at the band edge (next to the black
+// rim) or about half a marker gap from the nearest marker, so it can't upset detection.
+const CROP_IN = 1.5;
+
+function cropMarks(x, y, w, h) {
+  const out = CROP + 1, inn = CROP_IN;
+  return [
+    // top-left, top-right, bottom-left, bottom-right: one horizontal, one vertical each
+    [x - out, y, x + inn, y], [x, y - out, x, y + inn],
+    [x + w - inn, y, x + w + out, y], [x + w, y - out, x + w, y + inn],
+    [x - out, y + h, x + inn, y + h], [x, y + h - inn, x, y + h + out],
+    [x + w - inn, y + h, x + w + out, y + h], [x + w, y + h - inn, x + w, y + h + out],
+  ];
+}
+
+// Crop marks as [x1, y1, x2, y2, white] segments. On an inverted band each mark is
+// split where it meets the black (strip plus bleed): white inside, black outside.
+function cropSegments(plan, x, y, w, h) {
+  const lines = cropMarks(x, y, w, h);
+  if (!plan.invert) return lines.map((l) => [...l, false]);
+  const b = plan.bleed, rx0 = x - b, rx1 = x + w + b, ry0 = y - b, ry1 = y + h + b;
+  const out = [];
+  for (const [x1, y1, x2, y2] of lines) {
+    const horiz = y1 === y2;
+    const [a, c] = horiz ? [Math.min(x1, x2), Math.max(x1, x2)] : [Math.min(y1, y2), Math.max(y1, y2)];
+    const across = horiz ? y1 : x1;
+    const [lo, hi] = horiz ? [rx0, rx1] : [ry0, ry1];
+    const inBand = horiz ? across >= ry0 && across <= ry1 : across >= rx0 && across <= rx1;
+    const seg = (p, q, white) => {
+      if (q - p > 1e-9) out.push(horiz ? [p, across, q, across, white] : [across, p, across, q, white]);
+    };
+    if (!inBand) { seg(a, c, false); continue; }
+    seg(a, Math.min(c, lo), false);
+    seg(Math.max(a, lo), Math.min(c, hi), true);
+    seg(Math.max(a, hi), c, false);
+  }
+  return out;
+}
+
+// ---- Paper (SVG) -----------------------------------------------------------
+
+export function paperLayout(plan, paperKey) {
+  const paper = PAPER[paperKey];
+  if (!paper) throw new Error(`Unknown paper size "${paperKey}".`);
+  const strips = splitStrips(plan, paper.w - 2 * PAPER_MARGIN - 2 * plan.bleed);
+  const rowH = PAPER_CAPTION + plan.height + 2 * plan.bleed + PAPER_ROW_GAP;
+  const rowsPerPage = Math.floor((paper.h - 2 * PAPER_MARGIN - PAPER_HEADER - PAPER_FOOTER + PAPER_ROW_GAP) / rowH);
+  if (rowsPerPage < 1) throw new Error('The band is too tall to fit on the page.');
+  const pages = [];
+  for (let i = 0; i < strips.length; i += rowsPerPage) pages.push(strips.slice(i, i + rowsPerPage));
+  return { paper, strips, pages, rowH };
+}
+
+// One SVG per page, sized in real millimetres so it prints at 100%.
+export function paperSvgs(plan, paperKey) {
+  const { paper, pages, rowH } = paperLayout(plan, paperKey);
+  return pages.map((rows, pageIndex) => {
+    const out = [];
+    out.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${paper.w}mm" height="${paper.h}mm" viewBox="0 0 ${paper.w} ${paper.h}" font-family="Helvetica, Arial, sans-serif">`);
+    out.push(`<rect width="${paper.w}" height="${paper.h}" fill="#fff"/>`);
+    const m = PAPER_MARGIN;
+    out.push(`<text x="${m}" y="${m + 4}" font-size="4.2" font-weight="bold" fill="#000">Badge Turntable encoder ring` +
+      (pages.length > 1 ? ` (page ${pageIndex + 1} of ${pages.length})` : '') + `</text>`);
+    out.push(`<text x="${m}" y="${m + 9}" font-size="2.8" fill="#333">${esc(summary(plan))}</text>`);
+    const cutHow = plan.invert ? 'Cut on the corner crosses (white where they cross the black).' : 'Cut on the corner marks.';
+    out.push(`<text x="${m}" y="${m + 13}" font-size="2.8" fill="#333">Print at 100% (Actual size). ${cutHow} ` +
+      `Wrap strips in order with markers upright; strip 1's first marker is 0°.</text>`);
+
+    rows.forEach((strip, i) => {
+      const top = m + PAPER_HEADER + i * rowH;
+      const b = plan.bleed, x = m + b, y = top + PAPER_CAPTION + b;
+      out.push(`<text x="${x + 3}" y="${r2(top + 3)}" font-size="2.8" fill="#333">${esc(stripCaption(plan, strip))}</text>`);
+      if (plan.invert) {
+        out.push(`<rect x="${r2(x - b)}" y="${r2(y - b)}" width="${r2(strip.length + 2 * b)}" height="${r2(plan.height + 2 * b)}" fill="#000"/>`);
+      } else {
+        out.push(`<rect x="${x}" y="${r2(y)}" width="${r2(strip.length)}" height="${plan.height}" fill="none" stroke="#ccc" stroke-width="0.15" stroke-dasharray="1 1"/>`);
+      }
+      const path = stripRects(plan, strip.ids)
+        .map((q) => `M${r2(x + q.u)} ${r2(y + q.v)}h${r2(q.w)}v${r2(q.h)}h${r2(-q.w)}z`).join('');
+      out.push(`<path d="${path}" fill="${plan.invert ? '#fff' : '#000'}"/>`);
+      const segs = cropSegments(plan, x, y, strip.length, plan.height);
+      for (const white of [false, true]) {
+        const d = segs.filter((sg) => sg[4] === white)
+          .map(([x1, y1, x2, y2]) => `M${r2(x1)} ${r2(y1)}L${r2(x2)} ${r2(y2)}`).join('');
+        if (d) out.push(`<path d="${d}" stroke="${white ? '#fff' : '#000'}" stroke-width="0.2"/>`);
+      }
+    });
+
+    // 100 mm scale bar to check the printer didn't scale the page.
+    const by = paper.h - m - 6;
+    out.push(`<path d="M${m} ${by}h100" stroke="#000" stroke-width="0.4"/>`);
+    const ticks = [];
+    for (let t = 0; t <= 100; t += 10) ticks.push(`M${m + t} ${by}v${t % 50 === 0 ? -3 : -1.8}`);
+    out.push(`<path d="${ticks.join('')}" stroke="#000" stroke-width="0.3"/>`);
+    out.push(`<text x="${m + 104}" y="${by}" font-size="2.8" fill="#333">This bar must measure exactly 100 mm. If it doesn't, reprint at 100% / Actual size.</text>`);
+    out.push('</svg>');
+    return out.join('\n');
+  });
+}
+
+// ---- Top sticker (Print & Cut) ---------------------------------------------
+
+// Default gap between the sticker's edge and the platter's, so it never overhangs.
+export const STICKER_INSET = 1;
+
+// An alignment sticker for the platter top, for a cutter's Print & Cut (Silhouette Cameo
+// and the like): a disc with a 0° line toward the camera, ticks every 10° (labelled every
+// 90°), centring rings every 10 mm and a centre cross, so a badge goes on centred and
+// square. The red circle is the cut line, in its own group (id "cut-line"); the cutter
+// software adds its registration marks. One SVG page, sized in millimetres.
+//   diameter: the platter top (mm); paperKey: letter | a4; inset: mm inside the edge.
+export function topStickerSvg(opts) {
+  const paper = PAPER[opts.paperKey || 'letter'];
+  if (!paper) throw new Error(`Unknown paper size "${opts.paperKey}".`);
+  const inset = opts.inset >= 0 ? opts.inset : STICKER_INSET;
+  const d = opts.diameter - 2 * inset;
+  if (!(d > 20)) throw new Error('Enter the platter diameter (more than 20 mm).');
+  // Cutters keep their registration marks clear of the page edges: about 20 mm.
+  const room = Math.min(paper.w, paper.h) - 2 * 20 - 14;
+  if (d > room) throw new Error(`A ${d.toFixed(1)} mm sticker doesn't fit on ${paper.name} with registration marks (max ${room.toFixed(0)} mm).`);
+
+  const r = d / 2, cx = paper.w / 2, cy = paper.h / 2 + 4;
+  // Angles clockwise as seen from above, 0° at the bottom of the page (toward the camera).
+  const at = (deg, rad) => {
+    const a = (deg * Math.PI) / 180;
+    return [r2(cx - rad * Math.sin(a)), r2(cy + rad * Math.cos(a))];
+  };
+  const out = [];
+  out.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${paper.w}mm" height="${paper.h}mm" viewBox="0 0 ${paper.w} ${paper.h}" font-family="Helvetica, Arial, sans-serif">`);
+  out.push(`<rect width="${paper.w}" height="${paper.h}" fill="#fff"/>`);
+  out.push(`<text x="12" y="14" font-size="4.2" font-weight="bold" fill="#000">Badge Turntable platter sticker</text>`);
+  out.push(`<text x="12" y="19" font-size="2.8" fill="#333">${r2(d)} mm disc for a ${r2(opts.diameter)} mm platter (${r2(inset)} mm inset). ` +
+    `Print &amp; Cut: add registration marks in the cutter software, print at 100%, cut the red circle.</text>`);
+
+  out.push('<g id="print">');
+  // Centring rings every 10 mm, and a centre cross.
+  const rings = [];
+  for (let rr = 10; rr < r - 4; rr += 10) rings.push(`<circle cx="${r2(cx)}" cy="${r2(cy)}" r="${rr}" fill="none" stroke="#bbb" stroke-width="0.2"/>`);
+  out.push(...rings);
+  out.push(`<path d="M${r2(cx - 6)} ${r2(cy)}h12M${r2(cx)} ${r2(cy - 6)}v12" stroke="#000" stroke-width="0.3"/>`);
+  // Ticks round the edge: every 10°, longer every 45°, longest every 90°.
+  const ticks = [];
+  for (let deg = 0; deg < 360; deg += 10) {
+    const len = deg % 90 === 0 ? 8 : deg % 45 === 0 ? 5 : 3;
+    const [x1, y1] = at(deg, r - 1.5), [x2, y2] = at(deg, r - 1.5 - len);
+    ticks.push(`M${x1} ${y1}L${x2} ${y2}`);
+  }
+  out.push(`<path d="${ticks.join('')}" stroke="#000" stroke-width="0.35"/>`);
+  // The 0° line, from the centre to the edge, toward the camera.
+  const [zx, zy] = at(0, r - 1.5);
+  out.push(`<path d="M${r2(cx)} ${r2(cy)}L${zx} ${zy}" stroke="#c00" stroke-width="0.6"/>`);
+  // The 90° lines, fainter, to square a badge up.
+  const cross = [90, 180, 270].map((deg) => { const [x, y] = at(deg, r - 9.5); return `M${r2(cx)} ${r2(cy)}L${x} ${y}`; });
+  out.push(`<path d="${cross.join('')}" stroke="#999" stroke-width="0.25" stroke-dasharray="1.5 1"/>`);
+  for (const deg of [0, 90, 180, 270]) {
+    const [x, y] = at(deg, r - 13);
+    const label = deg === 0 ? '0° front' : `${deg}°`;
+    // Beside the line, not on it: right of the 0°/180° lines, above the 90°/270° ones.
+    const side = deg % 180 === 0;
+    const tx = side ? r2(x + 1.5) : x, ty = side ? r2(y + 1.2) : r2(y - 1.5);
+    out.push(`<text x="${tx}" y="${ty}" font-size="3.4" text-anchor="${side ? 'start' : 'middle'}" fill="${deg === 0 ? '#c00' : '#000'}">${label}</text>`);
+  }
+  out.push('</g>');
+
+  out.push(`<g id="cut-line"><circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r2(r)}" fill="none" stroke="#f00" stroke-width="0.25"/></g>`);
+
+  // 100 mm scale bar, as on the ring pages.
+  const m = 12, by = paper.h - m - 6;
+  out.push(`<path d="M${m} ${by}h100" stroke="#000" stroke-width="0.4"/>`);
+  const bar = [];
+  for (let t = 0; t <= 100; t += 10) bar.push(`M${m + t} ${by}v${t % 50 === 0 ? -3 : -1.8}`);
+  out.push(`<path d="${bar.join('')}" stroke="#000" stroke-width="0.3"/>`);
+  out.push(`<text x="${m + 104}" y="${by}" font-size="2.8" fill="#333">This bar must measure exactly 100 mm.</text>`);
+  out.push('</svg>');
+  return out.join('\n');
+}
+
+// ---- 4x6 label (ZPL + SVG preview) ----------------------------------------
+
+// Strips run along the 6 in feed direction, side by side across the 4 in width.
+// Each strip is rotated so its "up" points to +x (the caption sits on its right).
+export function labelLayout(plan) {
+  const strips = splitStrips(plan, LABEL.h - 2 * LABEL_MARGIN - 2 * plan.bleed);
+  const colW = plan.height + 2 * plan.bleed + LABEL_CAPTION;
+  const cols = Math.floor((LABEL.w - 2 * LABEL_MARGIN) / colW);
+  if (cols < 1) throw new Error('The band is too tall to fit across a 4 in label.');
+  const labels = [];
+  for (let i = 0; i < strips.length; i += cols) labels.push(strips.slice(i, i + cols));
+  return { strips, labels, colW };
+}
+
+// Where a strip's own rectangle starts on the label (mm), inside any bleed.
+function stripOrigin(plan, colX) {
+  return { x: colX + plan.bleed, y: LABEL_MARGIN + plan.bleed };
+}
+
+// Maps a strip-coordinate rectangle onto the label (mm).
+function labelRect(plan, colX, q) {
+  const o = stripOrigin(plan, colX);
+  return { x: o.x + plan.height - (q.v + q.h), y: o.y + q.u, w: q.h, h: q.w };
+}
+
+export function labelZpl(plan, dpi) {
+  const d = dpi / 25.4;
+  const dots = (mm) => Math.round(mm * d);
+  const { labels, colW } = labelLayout(plan);
+  const out = [];
+  labels.forEach((cols, labelIndex) => {
+    out.push(`^XA`);
+    out.push(`^FX Badge Turntable encoder ring, label ${labelIndex + 1} of ${labels.length}, ${dpi} dpi^FS`);
+    out.push(`^CI28^PW${dots(LABEL.w)}^LL${dots(LABEL.h)}^LH0,0`);
+    cols.forEach((strip, j) => {
+      const colX = LABEL_MARGIN + j * colW;
+      const o = stripOrigin(plan, colX), b = plan.bleed;
+      // Boxes are drawn in order, so white cells and marks can go over the black band.
+      const box = (xmm, ymm, wmm, hmm, white) => {
+        // Round edges, not sizes, so neighbouring cells tile without gaps.
+        const x0 = dots(xmm), y0 = dots(ymm);
+        const w = dots(xmm + wmm) - x0, h = dots(ymm + hmm) - y0;
+        out.push(`^FO${x0},${y0}^GB${w},${h},${Math.min(w, h)}${white ? ',W' : ''}^FS`);
+      };
+      if (plan.invert) box(o.x - b, o.y - b, plan.height + 2 * b, strip.length + 2 * b, false);
+      for (const q of stripRects(plan, strip.ids)) {
+        const r = labelRect(plan, colX, q);
+        box(r.x, r.y, r.w, r.h, plan.invert);
+      }
+      const t = Math.max(2, dots(0.25));
+      for (const [x1, y1, x2, y2, white] of cropSegments(plan, o.x, o.y, plan.height, strip.length)) {
+        // Centre the line's thickness on the cut line.
+        const horiz = y1 === y2;
+        const x = dots(Math.min(x1, x2)) - (horiz ? 0 : t >> 1);
+        const y = dots(Math.min(y1, y2)) - (horiz ? t >> 1 : 0);
+        out.push(`^FO${x},${y}^GB${Math.max(t, dots(Math.abs(x2 - x1)))},${Math.max(t, dots(Math.abs(y2 - y1)))},${t}${white ? ',W' : ''}^FS`);
+      }
+      const th = dots(2.2);
+      out.push(`^FO${dots(o.x + plan.height + b + 0.6)},${dots(LABEL_MARGIN)}^A0R,${th},${th}^FD${stripCaption(plan, strip, true)}^FS`);
+    });
+    out.push(`^XZ`);
+  });
+  return out.join('\n') + '\n';
+}
+
+// SVG preview of each label, matching the ZPL layout.
+export function labelSvgs(plan) {
+  const { labels, colW } = labelLayout(plan);
+  return labels.map((cols) => {
+    const out = [];
+    out.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${LABEL.w}mm" height="${LABEL.h}mm" viewBox="0 0 ${LABEL.w} ${LABEL.h}" font-family="Helvetica, Arial, sans-serif">`);
+    out.push(`<rect x="0.2" y="0.2" width="${LABEL.w - 0.4}" height="${LABEL.h - 0.4}" rx="3" fill="#fff" stroke="#bbb" stroke-width="0.4"/>`);
+    cols.forEach((strip, j) => {
+      const colX = LABEL_MARGIN + j * colW;
+      const o = stripOrigin(plan, colX), b = plan.bleed;
+      if (plan.invert) {
+        out.push(`<rect x="${r2(o.x - b)}" y="${r2(o.y - b)}" width="${r2(plan.height + 2 * b)}" height="${r2(strip.length + 2 * b)}" fill="#000"/>`);
+      }
+      const path = stripRects(plan, strip.ids).map((q) => {
+        const r = labelRect(plan, colX, q);
+        return `M${r2(r.x)} ${r2(r.y)}h${r2(r.w)}v${r2(r.h)}h${r2(-r.w)}z`;
+      }).join('');
+      out.push(`<path d="${path}" fill="${plan.invert ? '#fff' : '#000'}"/>`);
+      const segs = cropSegments(plan, o.x, o.y, plan.height, strip.length);
+      for (const white of [false, true]) {
+        const d = segs.filter((sg) => sg[4] === white)
+          .map(([x1, y1, x2, y2]) => `M${r2(x1)} ${r2(y1)}L${r2(x2)} ${r2(y2)}`).join('');
+        if (d) out.push(`<path d="${d}" stroke="${white ? '#fff' : '#000'}" stroke-width="0.25"/>`);
+      }
+      const tx = r2(o.x + plan.height + b + 0.6);
+      out.push(`<text x="${tx}" y="${LABEL_MARGIN}" font-size="2.2" fill="#000" transform="rotate(90 ${tx} ${LABEL_MARGIN})">${esc(stripCaption(plan, strip))}</text>`);
+    });
+    out.push('</svg>');
+    return out.join('\n');
+  });
+}
+
+// ---- Illustration ------------------------------------------------------------
+
+// What the camera sees: the ring wrapped round the rim, at table angle theta
+// (the ring angle facing the camera). Used for the docs; not to scale.
+export function cameraViewSvg(plan, theta) {
+  const W = 320, H = 140, xc = 160, R = 130, b = 26, yc = 70;
+  const s = R / (plan.circumference / (2 * Math.PI)); // drawing units per mm
+  const band = plan.height * s;
+  const toXY = (u, v) => {
+    // The strip starts half a step before marker 0, whose centre is 0°.
+    const phi = ((u / plan.circumference) * 360 - plan.step / 2 - theta) * Math.PI / 180;
+    return [xc + R * Math.sin(phi), yc + b * Math.cos(phi) + v * s, Math.cos(phi)];
+  };
+  const out = [];
+  out.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="Helvetica, Arial, sans-serif">`);
+  out.push(`<rect width="${W}" height="${H}" fill="#fff"/>`);
+  // Rim band (front half) and platter top.
+  const front = [];
+  for (let a = -90; a <= 90; a += 3) {
+    const p = a * Math.PI / 180;
+    front.push([xc + R * Math.sin(p), yc + b * Math.cos(p)]);
+  }
+  const bandPath = 'M' + front.map(([x, y]) => `${r2(x)} ${r2(y)}`).join('L') +
+    'L' + front.slice().reverse().map(([x, y]) => `${r2(x)} ${r2(y + band)}`).join('L') + 'Z';
+  out.push(`<path d="${bandPath}" fill="#fafafa" stroke="#888" stroke-width="0.6"/>`);
+  out.push(`<ellipse cx="${xc}" cy="${yc}" rx="${R}" ry="${b}" fill="#e6e6e6" stroke="#888" stroke-width="0.6"/>`);
+
+  // Markers: each black run is a quad mapped onto the cylinder; skip the back half.
+  const all = Array.from({ length: plan.count }, (_, i) => i);
+  const path = [];
+  for (const q of stripRects(plan, all)) {
+    const corners = [toXY(q.u, q.v), toXY(q.u + q.w, q.v), toXY(q.u + q.w, q.v + q.h), toXY(q.u, q.v + q.h)];
+    if (corners.some((c) => c[2] < 0.12)) continue;
+    path.push('M' + corners.map(([x, y]) => `${r2(x)} ${r2(y)}`).join('L') + 'Z');
+  }
+  out.push(`<path d="${path.join('')}" fill="#111"/>`);
+
+  // A badge standing on the platter, and the camera axis.
+  out.push(`<rect x="${xc - 22}" y="${yc - 58}" width="44" height="56" rx="5" fill="#2f6f4f" stroke="#1d4a33" stroke-width="0.8"/>`);
+  out.push(`<rect x="${xc - 6}" y="${yc - 55}" width="12" height="3" rx="1.5" fill="#fff"/>`);
+  out.push(`<rect x="${xc - 14}" y="${yc - 42}" width="28" height="18" rx="2" fill="#173a2a"/>`);
+  out.push(`<path d="M${xc} ${yc - 62}V${yc + b + band + 14}" stroke="#d33" stroke-width="0.6" stroke-dasharray="3 2"/>`);
+  out.push(`<text x="${xc + 3}" y="${yc + b + band + 13}" font-size="6" fill="#d33">camera axis: table angle = ${fmtAngle(theta)}°</text>`);
+  out.push('</svg>');
+  return out.join('\n');
+}
