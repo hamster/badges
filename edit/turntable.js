@@ -91,12 +91,248 @@
       return await resp.json();
     } catch (e) {
       if (e instanceof ApiError) throw e;
-      var timedOut = e && e.name === 'AbortError';
-      throw new ApiError(0, { error: timedOut ? 'timeout' : 'network',
-                              message: timedOut ? 'The phone didn\'t answer.' : 'Can\'t reach the phone.' });
+      throw netError(e && e.name === 'AbortError');
     } finally {
       if (timer) clearTimeout(timer);
     }
+  }
+
+  function netError(timedOut) {
+    return new ApiError(0, { error: timedOut ? 'timeout' : 'network',
+                             message: timedOut ? 'The phone didn\'t answer.' : 'Can\'t reach the phone.' });
+  }
+
+  // -------------------------------------------------------------------------
+  // WebRTC (Remote-API.md § WebRTC transport)
+  //
+  // After pairing, the same API over WebRTC data channels, so this https page
+  // loads nothing over plain HTTP and keeps its padlock. There's no signalling:
+  // the phone is ICE-lite on a known UDP port, and we write its answer
+  // ourselves, with ICE credentials we make up and the certificate
+  // fingerprint pinned at pairing.
+  // -------------------------------------------------------------------------
+
+  var RTC_CONNECT_MS = 5000;
+  var RTC_MAX_REQS = 6;  // req channels open at once, as a browser does for HTTP/1.1
+  var FINGERPRINT_RE = /^sha-256 ([0-9A-F]{2}:){31}[0-9A-F]{2}$/;
+
+  function rtcSupported() { return typeof RTCPeerConnection === 'function'; }
+
+  // The `webrtc` object from Pair, if it's usable, to pin.
+  function pinnable(w) {
+    if (!w || typeof w.port !== 'number' || typeof w.fingerprint !== 'string') return null;
+    var fp = 'sha-256 ' + w.fingerprint.replace(/^sha-256\s+/i, '').toUpperCase();
+    return FINGERPRINT_RE.test(fp) ? { port: w.port, fingerprint: fp } : null;
+  }
+
+  function randomHex(bytes) {
+    var a = new Uint8Array(bytes);
+    crypto.getRandomValues(a);
+    return Array.prototype.map.call(a, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+  }
+
+  // Where to send ICE checks: <name>.local, then the phone's last known IPv4
+  // addresses. The phone has no IPv6 candidates.
+  function rtcHosts(dev) {
+    var list = [], seen = new Set();
+    function add(h) {
+      if (!h) return;
+      h = String(h).toLowerCase();
+      if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(h) && !/^[a-z0-9-]+\.local$/.test(h)) return;
+      if (!seen.has(h)) { seen.add(h); list.push(h); }
+    }
+    if (dev.name && /^[a-z0-9-]+$/i.test(dev.name)) add(dev.name + '.local');
+    add(dev.host);
+    add(dev.lastIp);
+    (dev.addresses || []).forEach(add);
+    return list;
+  }
+
+  function rtcAnswer(ufrag, w, hosts) {
+    var lines = ['v=0', 'o=- 1 1 IN IP4 0.0.0.0', 's=-', 't=0 0', 'a=group:BUNDLE 0', 'a=ice-lite',
+                 'm=application ' + w.port + ' UDP/DTLS/SCTP webrtc-datachannel', 'c=IN IP4 0.0.0.0', 'a=mid:0',
+                 'a=ice-ufrag:' + ufrag, 'a=ice-pwd:' + ufrag, 'a=fingerprint:' + w.fingerprint,
+                 'a=setup:passive', 'a=sctp-port:5000', 'a=max-message-size:262144'];
+    hosts.forEach(function (h, i) {
+      lines.push('a=candidate:' + (i + 1) + ' 1 udp ' + (2130706431 - i) + ' ' + h + ' ' + w.port + ' typ host');
+    });
+    lines.push('a=end-of-candidates');
+    return lines.join('\r\n') + '\r\n';
+  }
+
+  // One WebRTC connection to a phone: the `live` channel, opened with it, and
+  // a `req` channel per request.
+  function RtcLink() {
+    this.pc = null;
+    this.live = null;
+    this.closed = false;
+    this.active = 0;           // req channels open
+    this.waiting = [];         // requests queued for a channel: { go, fail }
+    this.pending = new Set();  // fail functions of requests in flight
+    this.sock = null;          // the WebSocket stand-in for `live`
+  }
+
+  // Connects, opens `live` and sends `auth` on it. Rejects if `live` hasn't
+  // opened within 5 s.
+  function rtcOpen(dev) {
+    return new Promise(function (resolve, reject) {
+      var link = new RtcLink(), opened = false;
+      var pc, live;
+      try {
+        pc = new RTCPeerConnection({ iceServers: [] });
+        live = pc.createDataChannel('live');
+      } catch (e) { reject(e); return; }
+      link.pc = pc;
+      link.live = live;
+      live.binaryType = 'arraybuffer';
+      link.sock = liveSocket(link);
+      function fail(e) {
+        if (opened) return;
+        opened = true;
+        clearTimeout(timer);
+        link.close();
+        reject(e || new Error('WebRTC didn\'t connect.'));
+      }
+      var timer = setTimeout(fail, RTC_CONNECT_MS);
+      live.onopen = function () {
+        if (opened) return;
+        opened = true;
+        clearTimeout(timer);
+        // At once, for the phone's 5 s auth timeout (4408).
+        live.send(JSON.stringify({ type: 'auth', token: dev.token }));
+        resolve(link);
+      };
+      pc.onconnectionstatechange = function () {
+        if (pc.connectionState === 'failed' || pc.connectionState === 'closed') { if (opened) link.close(); else fail(); }
+      };
+      var ufrag = randomHex(16);
+      pc.createOffer().then(function (offer) { return pc.setLocalDescription(offer); }).then(function () {
+        return pc.setRemoteDescription({ type: 'answer', sdp: rtcAnswer(ufrag, dev.webrtc, rtcHosts(dev)) });
+      }).catch(fail);
+    });
+  }
+
+  RtcLink.prototype.close = function () {
+    if (this.closed) return;
+    this.closed = true;
+    this.waiting.splice(0).forEach(function (w) { w.fail(); });
+    Array.from(this.pending).forEach(function (fail) { fail(); });
+    try { this.pc.close(); } catch (e) { /* already closed */ }
+    if (this.sock) this.sock._closed(1006);
+  };
+
+  RtcLink.prototype.slot = function () {
+    var self = this;
+    if (this.closed) return Promise.reject(netError(false));
+    if (this.active < RTC_MAX_REQS) { this.active++; return Promise.resolve(); }
+    return new Promise(function (go, fail) { self.waiting.push({ go: go, fail: function () { fail(netError(false)); } }); });
+  };
+
+  RtcLink.prototype.release = function () {
+    var next = this.waiting.shift();
+    if (next) next.go(); else this.active--;
+  };
+
+  // A stand-in for the /api/live WebSocket on the `live` channel, so the
+  // Conn code is the same for both. Holds what comes before start(): of that,
+  // only `hello` (and a close) matter, as the Conn syncs over req first.
+  function liveSocket(link) {
+    var held = [], started = false, closeCode = null;
+    var sock = {
+      readyState: 1,
+      onmessage: null,
+      onclose: null,
+      send: function (s) { if (link.live.readyState === 'open') link.live.send(s); },
+      close: function () { link.close(); },
+      start: function () {
+        started = true;
+        held.splice(0).forEach(function (d) { if (sock.onmessage) sock.onmessage({ data: d }); });
+        if (closeCode != null) fire();
+      },
+      _closed: function (code) {
+        if (closeCode != null) return;
+        closeCode = code;
+        sock.readyState = 3;
+        if (started) fire();
+      },
+    };
+    function fire() { var f = sock.onclose; sock.onclose = null; if (f) f({ code: closeCode }); }
+    link.live.onmessage = function (ev) {
+      if (typeof ev.data === 'string' && ev.data.indexOf('"close"') >= 0) {
+        var m = null;
+        try { m = JSON.parse(ev.data); } catch (e) { /* not JSON */ }
+        if (m && m.type === 'close') {
+          // The browser may say `connected` for a while after the phone has gone.
+          sock._closed(m.code || 1006);
+          link.close();
+          return;
+        }
+      }
+      if (started) { if (sock.onmessage) sock.onmessage(ev); }
+      else if (typeof ev.data === 'string' && ev.data.indexOf('"hello"') >= 0) held.push(ev.data);
+    };
+    link.live.onclose = function () { sock._closed(1006); link.close(); };
+    return sock;
+  }
+
+  // The same as http(), over a req channel.
+  async function rtcRequest(link, method, path, opts) {
+    opts = opts || {};
+    await link.slot();
+    var r;
+    try { r = await rtcExchange(link, method, path, opts); } finally { link.release(); }
+    if (r.status < 200 || r.status > 299) {
+      var b = null;
+      try { b = JSON.parse(await r.blob.text()); } catch (e) { /* not JSON */ }
+      throw new ApiError(r.status, b);
+    }
+    if (opts.blob) return r.blob;
+    if (r.status === 204) return null;
+    try { return JSON.parse(await r.blob.text()); } catch (e) { throw netError(false); }
+  }
+
+  // One request: resolves with { status, blob }, or rejects with a network
+  // error if the channel closes before `end` or the length is wrong.
+  function rtcExchange(link, method, path, opts) {
+    return new Promise(function (resolve, reject) {
+      var ch, head = null, parts = [], bytes = 0, done = false, timer = null;
+      function finish(err, val) {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        link.pending.delete(fail);
+        try { ch.close(); } catch (e) { /* already closed */ }
+        if (err) reject(err); else resolve(val);
+      }
+      function fail() { finish(netError(false)); }
+      if (link.closed) { reject(netError(false)); return; }
+      try { ch = link.pc.createDataChannel('req'); } catch (e) { reject(netError(false)); return; }
+      link.pending.add(fail);
+      ch.binaryType = 'arraybuffer';
+      if (opts.timeout) timer = setTimeout(function () { finish(netError(true)); }, opts.timeout);
+      ch.onopen = function () {
+        ch.send(JSON.stringify({ method: method, path: '/api' + path, token: opts.token || null,
+                                 body: opts.body !== undefined ? opts.body : null }));
+      };
+      ch.onmessage = function (ev) {
+        if (typeof ev.data !== 'string') {
+          if (!head) { fail(); return; }
+          parts.push(ev.data);
+          bytes += ev.data.byteLength;
+          return;
+        }
+        var m;
+        try { m = JSON.parse(ev.data); } catch (e) { fail(); return; }
+        if (m.type === 'head' && !head) {
+          head = m;
+        } else if (m.type === 'end' && head) {
+          var len = head.headers && head.headers['content-length'];
+          if (m.bytes !== bytes || (len != null && parseInt(len, 10) !== bytes)) { fail(); return; }
+          finish(null, { status: head.status, blob: new Blob(parts, { type: (head.headers && head.headers['content-type']) || '' }) });
+        }
+      };
+      ch.onclose = fail;  // before `end`: cut short
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -247,7 +483,8 @@
       if (!dev) return;
       dev.name = f.info.name;
       dev.model = f.info.model;
-      if (f.info.addresses && f.info.addresses[0]) dev.lastIp = f.info.addresses[0];
+      if (f.info.addresses && f.info.addresses[0]) { dev.lastIp = f.info.addresses[0]; dev.addresses = f.info.addresses; }
+      // dev.webrtc isn't taken from here: Info is unauthenticated plain HTTP.
       if (refused[id] && !paired[id]) dev.token = null;  // revoked on the phone
     });
     saveStore();
@@ -282,7 +519,7 @@
       var isConn = conn && conn.deviceId === id;
       var state, actions = [];
       if (isConn) {
-        state = conn.wsLive ? 'Connected' : conn.offline ? 'Lost contact, reconnecting…' : 'Connecting…';
+        state = conn.wsLive ? (conn.link ? 'Connected, encrypted' : 'Connected') : conn.offline ? 'Lost contact, reconnecting…' : 'Connecting…';
         actions.push(el('button', { type: 'button', class: 'btn-secondary tt-small', text: 'Disconnect', onclick: function () { disconnect(true); } }));
       } else if (f && f.info.api !== API_VERSION) {
         state = 'Needs a different editor (phone speaks API ' + f.info.api + ', this page ' + API_VERSION + ')';
@@ -333,9 +570,12 @@
     var dev = deviceById(id);
     if (!dev) return;
     if (!confirm('Forget ' + (dev.name || id) + '? You\'ll need to pair again to use it.')) return;
+    var f = found.get(id), link = conn && conn.deviceId === id && conn.link;
+    if (dev.token && link) {
+      try { await rtcRequest(link, 'DELETE', '/pair', { token: dev.token, timeout: PROBE_TIMEOUT_MS }); } catch (e) { /* best effort */ }
+    }
     if (conn && conn.deviceId === id) disconnect(true);
-    var f = found.get(id);
-    if (dev.token && f) {
+    if (dev.token && f && !link) {
       try { await http(f.host, f.port, 'DELETE', '/pair', { token: dev.token, timeout: PROBE_TIMEOUT_MS }); } catch (e) { /* best effort */ }
     }
     store.devices = store.devices.filter(function (d) { return d.deviceId !== id; });
@@ -375,8 +615,11 @@
       store.clientName = clientName;
       var dev = deviceById(r.deviceId);
       if (!dev) { dev = { deviceId: r.deviceId }; store.devices.push(dev); }
+      // The WebRTC fingerprint is pinned here, with the token, and only here.
       Object.assign(dev, { name: r.name, model: f.info.model, host: f.host, port: f.port, token: r.token,
-                           lastIp: (f.info.addresses && f.info.addresses[0]) || dev.lastIp || null });
+                           webrtc: pinnable(r.webrtc),
+                           lastIp: (f.info.addresses && f.info.addresses[0]) || dev.lastIp || null,
+                           addresses: f.info.addresses || dev.addresses || [] });
       // Remembered by device now; drop the bare address entry.
       store.addresses = store.addresses.filter(function (a) { return !(a.host === f.host && a.port === f.port); });
       saveStore();
@@ -409,6 +652,8 @@
     this.ring = null;
     this.ws = null;
     this.wsLive = false;
+    this.link = null;         // the RtcLink, when connected over WebRTC
+    this.mode = 'http';       // 'rtc' or 'http', chosen by openTransport()
     this.wanted = true;
     this.backoff = 1000;
     this.thumbs = new Map();  // tray item thumbKey -> object URL
@@ -430,9 +675,16 @@
 
   Conn.prototype.dev = function () { return deviceById(this.deviceId); };
 
+  // Over WebRTC once connected that way; never falls back to HTTP by itself,
+  // which would flag the page as Not secure (that's openTransport's call).
+  Conn.prototype.request = function (method, path, opts) {
+    if (this.mode === 'rtc') return this.link ? rtcRequest(this.link, method, path, opts) : Promise.reject(netError(false));
+    return http(this.host, this.port, method, path, opts);
+  };
+
   Conn.prototype.api = function (method, path, body, timeout) {
     var self = this, dev = this.dev();
-    return http(this.host, this.port, method, path, { token: dev && dev.token, body: body, timeout: timeout || 10000 }).catch(function (e) {
+    return this.request(method, path, { token: dev && dev.token, body: body, timeout: timeout || 10000 }).catch(function (e) {
       if (e.code === 'unauthorized') unauthorized(self);
       throw e;
     });
@@ -440,7 +692,51 @@
 
   Conn.prototype.blob = function (path) {
     var dev = this.dev();
-    return http(this.host, this.port, 'GET', path, { token: dev && dev.token, blob: true });
+    return this.request('GET', path, { token: dev && dev.token, blob: true });
+  };
+
+  // WebRTC if the phone's fingerprint was pinned at pairing, else HTTP. If
+  // WebRTC doesn't connect, asks Info over HTTP why: an older app, WebRTC off,
+  // a revoked pairing, or a changed key.
+  Conn.prototype.openTransport = async function () {
+    var dev = this.dev();
+    this.dropLink();
+    this.mode = 'http';
+    if (!dev || !dev.webrtc || !rtcSupported()) return;
+    try {
+      var link = await rtcOpen(dev);
+      if (!this.wanted) { link.close(); return; }
+      this.link = link;
+      this.mode = 'rtc';
+      return;
+    } catch (e) { /* asked over HTTP below */ }
+    var info = await http(this.host, this.port, 'GET', '/info', { token: dev.token, timeout: PROBE_TIMEOUT_MS });
+    if (info.paired === false) unauthorized(this);
+    if (info.paired === false) throw new ApiError(401, { error: 'unauthorized', message: 'The phone no longer accepts this browser\'s pairing.' });
+    var w = pinnable(info.webrtc);
+    if (info.paired === true && w && w.fingerprint !== dev.webrtc.fingerprint) {
+      throw new ApiError(0, { error: 'key_changed', message: 'The phone\'s key changed. Pair again.' });
+    }
+  };
+
+  Conn.prototype.dropLink = function () {
+    if (this.link) { this.link.close(); this.link = null; }
+  };
+
+  // Learn the phone's current name and addresses (for the next connection's
+  // candidates) over the connection we have, without probing HTTP.
+  Conn.prototype.refreshInfo = function () {
+    var self = this;
+    this.api('GET', '/info', undefined, PROBE_TIMEOUT_MS).then(function (info) {
+      var dev = self.dev();
+      if (!dev || !info || info.deviceId !== self.deviceId) return;
+      dev.name = info.name || dev.name;
+      dev.model = info.model || dev.model;
+      if (info.addresses && info.addresses[0]) { dev.lastIp = info.addresses[0]; dev.addresses = info.addresses; }
+      saveStore();
+      if (!found.has(self.deviceId)) found.set(self.deviceId, { info: info, host: self.host, port: self.port });
+      renderDevices();
+    }, function () { /* not needed to work */ });
   };
 
   Conn.prototype.sync = async function () {
@@ -497,10 +793,16 @@
 
   Conn.prototype.openWs = function () {
     var self = this, dev = this.dev();
-    var ws = new WebSocket(baseUrl(this.host, this.port).replace(/^http/, 'ws') + '/api/live');
-    ws.binaryType = 'arraybuffer';
+    var ws;
+    if (this.mode === 'rtc') {
+      if (!this.link) { this.lost(null); return; }
+      ws = this.link.sock;  // already open, and `auth` sent
+    } else {
+      ws = new WebSocket(baseUrl(this.host, this.port).replace(/^http/, 'ws') + '/api/live');
+      ws.binaryType = 'arraybuffer';
+      ws.onopen = function () { ws.send(JSON.stringify({ type: 'auth', token: dev && dev.token })); };
+    }
     this.ws = ws;
-    ws.onopen = function () { ws.send(JSON.stringify({ type: 'auth', token: dev && dev.token })); };
     this.lastMsgAt = Date.now();
     clearInterval(this.watchdog);
     this.watchdog = setInterval(function () {
@@ -520,9 +822,10 @@
     };
     ws.onclose = function (ev) {
       if (self.ws !== ws) return;
-      if (ev.code === 4401) { self.ws = null; self.wsLive = false; clearInterval(self.watchdog); if (self.wanted) unauthorized(self); return; }
+      if (ev.code === 4401) { self.ws = null; self.wsLive = false; clearInterval(self.watchdog); self.dropLink(); if (self.wanted) unauthorized(self); return; }
       self.lost(ws);
     };
+    if (ws.start) ws.start();  // WebRTC: pass on the `hello` that came while syncing
   };
 
   // The socket closed or went quiet: show the phone as offline and keep trying.
@@ -533,6 +836,7 @@
     this.offline = true;
     clearInterval(this.watchdog);
     try { ws.close(); } catch (e) { /* already closed */ }
+    this.dropLink();
     if (!this.wanted) return;
     if (conn === this) {
       $('tt-preview-msg').textContent = 'Lost contact with the phone. Reconnecting…';
@@ -561,6 +865,8 @@
 
   Conn.prototype.reconnect = async function () {
     try {
+      await this.openTransport();
+      if (!this.wanted) return;
       await this.sync();
       if (!this.wanted) return;
       this.openWs();
@@ -568,6 +874,8 @@
       renderAll();
     } catch (e) {
       if (!this.wanted || e.code === 'unauthorized') return;
+      if (e.code === 'key_changed') { keyChanged(this); return; }
+      this.dropLink();
       var self = this, wait = this.backoff;
       this.backoff = Math.min(this.backoff * 2, 15000);
       renderAll();
@@ -665,7 +973,10 @@
   Conn.prototype.close = function () {
     this.wanted = false;
     clearInterval(this.watchdog);
-    if (this.ws) { try { this.ws.close(1000); } catch (e) { /* already closed */ } this.ws = null; }
+    var ws = this.ws;
+    this.ws = null;
+    if (ws) { try { ws.close(1000); } catch (e) { /* already closed */ } }
+    this.dropLink();
     this.thumbs.forEach(function (u) { URL.revokeObjectURL(u); });
     this.thumbs.clear();
   };
@@ -680,25 +991,31 @@
     }, 400);
   }
 
-  async function connect(id) {
+  // Connects to a paired phone: over WebRTC if its key was pinned at pairing,
+  // without needing it to have been found over HTTP first. Says whether it worked.
+  async function connect(id, quiet) {
     var f = found.get(id), dev = deviceById(id);
-    if (!f || !dev || !dev.token) { if (f) showPair(id); return; }
+    if (!dev || !dev.token || !(f || dev.webrtc)) { if (f) showPair(id); return false; }
     disconnect(false);
-    var c = new Conn(id, f.host, f.port);
+    var c = new Conn(id, f ? f.host : dev.host, f ? f.port : dev.port);
     c.source = store.source || EDITOR_SOURCE;  // kept if the phone still has that session
     conn = c;
     renderDevices();
     try {
+      await c.openTransport();
+      if (conn !== c) return false;
       await c.sync();
     } catch (e) {
       if (conn === c) { conn = null; c.close(); }
-      if (e.code !== 'unauthorized') notice('Couldn\'t connect: ' + e.message, 'error');
+      if (e.code === 'key_changed') keyChanged(c);
+      else if (e.code !== 'unauthorized' && !quiet) notice('Couldn\'t connect: ' + e.message, 'error');
       renderAll();
-      return;
+      return false;
     }
-    if (conn !== c) return;
+    if (conn !== c) return false;
     store.lastDeviceId = id;
     saveStore();
+    c.refreshInfo();
     c.openWs();
     lastBitmap = null;
     barDrag = barPending = null;
@@ -708,6 +1025,7 @@
     renderCameraControls();
     renderRoles();
     renderAll();
+    return true;
   }
 
   function disconnect(userAsked) {
@@ -725,6 +1043,17 @@
     if (dev) { dev.token = null; saveStore(); }
     if (conn === c) disconnect(false);
     notice('The phone no longer accepts this browser\'s pairing. Pair again.', 'error');
+    if (found.has(c.deviceId)) showPair(c.deviceId);
+  }
+
+  // WebRTC to the phone failed, and its Info (over HTTP, with our token) gives
+  // a different certificate fingerprint from the one pinned at pairing: its
+  // data was cleared, or someone else is answering. Only pairing again fixes it.
+  function keyChanged(c) {
+    var dev = c.dev();
+    if (dev) { dev.token = null; dev.webrtc = null; saveStore(); }
+    if (conn === c) disconnect(false);
+    notice('The phone\'s key changed. Pair again.', 'error');
     if (found.has(c.deviceId)) showPair(c.deviceId);
   }
 
@@ -2121,7 +2450,15 @@
     store.open = $('tt-panel').open;
     saveStore();
     if (conn) conn.sendPreview();
-    if (!store.open || probed || probing) return;
+    if (!store.open || probed || probing || conn) return;
+    // A paired phone with a pinned key is reached over WebRTC, without
+    // probing HTTP, so the page stays secure. Find phones probes as before.
+    var last = store.lastDeviceId && deviceById(store.lastDeviceId);
+    if (last && last.token && last.webrtc && rtcSupported()) {
+      renderDevices();
+      if (await connect(last.deviceId, true)) return;
+      if (probed || probing || conn) return;
+    }
     lnaStatus = await queryLna();
     if (lnaStatus) lnaStatus.onchange = function () { renderPerm(); if (lnaStatus.state === 'granted') probe(); };
     renderPerm();
