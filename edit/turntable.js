@@ -18,8 +18,12 @@
     continuous_mode: 'Continuous', intermittent_mode: 'Intermittent', step_45: 'Step 45°', step_90: 'Step 90°',
     step_180: 'Step 180°', set_origin: 'Set origin', return_to_origin: 'Back to origin',
   };
-  var ANSWER_LABELS = { retry: 'Retry', manual: 'Switch to manual', stop: 'Stop', ready: 'Ready, capture', done: 'Done' };
+  // `manual`, `done` and a spin `position` without a `stage` come only from
+  // phones older than Remote-API.md of Nov 8, 2026.
+  var ANSWER_LABELS = { retry: 'Retry', manual: 'Switch to manual', stop: 'Stop', ready: 'Capture', done: 'Done', skip: 'Skip video' };
   function answerLabel(p, a) {
+    if (p.kind === 'position' && p.stage === 'start') return a === 'ready' ? 'Record spin' : ANSWER_LABELS[a] || a;
+    if (p.kind === 'position' && p.stage === 'recording') return a === 'ready' ? 'Stop and keep' : a === 'stop' ? 'Discard' : ANSWER_LABELS[a] || a;
     if (a === 'ready' && p.view && /(^|-)spin$/.test(p.view)) return 'Ready, record';
     return ANSWER_LABELS[a] || a;
   }
@@ -35,7 +39,7 @@
     var s = {};
     try { s = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch (e) { s = {}; }
     return Object.assign({ devices: [], addresses: [], clientName: '', lastDeviceId: null, extraLabel: 'Lanyard',
-                           open: false, clearAfter: true, source: '' }, s);
+                           open: false, clearAfter: true, source: '', captureMode: 'phone', autoTable: true }, s);
   })();
   function saveStore() { try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) { /* private mode */ } }
   function deviceById(id) { return store.devices.find(function (d) { return d.deviceId === id; }) || null; }
@@ -697,6 +701,7 @@
     saveStore();
     c.openWs();
     lastBitmap = null;
+    barDrag = barPending = null;
     $('tt-preview-msg').textContent = 'Waiting for the preview…';
     $('tt-preview-msg').classList.remove('lost');
     $('tt-preview-msg').hidden = false;
@@ -769,6 +774,8 @@
     ctx.restore();
 
     var lw = Math.max(1, w / 400);
+    var bars = barsShown();
+    if (bars) drawBars(ctx, w, h, bars, lw);  // under the guides and markers, as on the phone
     if ($('tt-ov-grid').checked) {
       ctx.strokeStyle = 'rgba(255,255,255,0.45)';
       ctx.lineWidth = lw;
@@ -813,7 +820,148 @@
     }
   }
 
+  // Side bars. Past them, the phone paints over the views and the spin with the
+  // background just inside each bar. The preview frames aren't painted (the ring
+  // needs the whole width), so the shading is drawn here, and the lines drag.
+  // left and right are fractions of the upright frame's width.
+  var BAR_DEFAULT = 0.08;   // where the phone puts them when they're turned on unset
+  var barDrag = null;       // {side, left, right, moved} while a line is held
+  var barPending = null;    // {left, right} sent, shown until the phone answers
+  var barClickBlock = false;
+
+  function barsMax() { return (conn.caps.bars && conn.caps.bars.max) || 0.4; }
+  function barsKnown() { return !!(conn && conn.caps && conn.caps.bars && conn.camera && conn.camera.bars); }
+  function barsShown() {
+    if (!barsKnown()) return null;
+    if (barDrag) return barDrag;
+    var b = barPending || conn.camera.bars;
+    return b.enabled ? b : null;
+  }
+  // As on the phone, not while any job runs: a capture takes them when it starts.
+  function barsEditable() {
+    return barsKnown() && conn.camera.bars.enabled && !conn.offline && !jobActive(conn.job) && cameraOpen();
+  }
+  function clampBar(f) { return Math.min(barsMax(), Math.max(0, f)); }
+  function round3(v) { return Math.round(v * 1000) / 1000; }
+
+  function drawBars(ctx, w, h, b, lw) {
+    var lx = b.left * w, rx = (1 - b.right) * w;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    if (lx > 0) ctx.fillRect(0, 0, lx, h);
+    if (rx < w) ctx.fillRect(rx, 0, w - rx, h);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = lw * 1.5;
+    ctx.beginPath();
+    ctx.moveTo(lx, 0); ctx.lineTo(lx, h);
+    ctx.moveTo(rx, 0); ctx.lineTo(rx, h);
+    ctx.stroke();
+    if (!barsEditable()) return;
+    // A grip on each line, so it reads as draggable.
+    var gw = 9 * lw, gh = 30 * lw, cy = h / 2;
+    [lx, rx].forEach(function (x) {
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(x - gw / 2, cy - gh / 2, gw, gh, gw / 2); else ctx.rect(x - gw / 2, cy - gh / 2, gw, gh);
+      ctx.fill();
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = lw;
+      ctx.beginPath();
+      for (var i = -1; i <= 1; i++) { ctx.moveTo(x - gw * 0.3, cy + i * 4 * lw); ctx.lineTo(x + gw * 0.3, cy + i * 4 * lw); }
+      ctx.stroke();
+    });
+  }
+
+  // The bar line under the pointer, if it's close enough to grab.
+  function barAt(e) {
+    if (!lastBitmap || !barsEditable()) return null;
+    var r = $('tt-preview').getBoundingClientRect(), b = barsShown();
+    var x = e.clientX - r.left, grab = e.pointerType === 'touch' ? 20 : 10;
+    var dl = Math.abs(x - b.left * r.width), dr = Math.abs(x - (1 - b.right) * r.width);
+    if (Math.min(dl, dr) > grab) return null;
+    return dl <= dr ? 'left' : 'right';
+  }
+
+  function barDown(e) {
+    if (e.button !== 0) return;
+    var side = barAt(e);
+    if (!side) return;
+    var b = barsShown(), r = $('tt-preview').getBoundingClientRect();
+    var line = side === 'left' ? b.left : 1 - b.right;
+    // Keep where on the line it was grabbed, so it doesn't jump to the pointer.
+    barDrag = { side: side, enabled: true, left: b.left, right: b.right, moved: false, grab: (e.clientX - r.left) / r.width - line };
+    $('tt-preview').setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+
+  function barMove(e) {
+    var c = $('tt-preview');
+    if (!barDrag) { c.style.cursor = barAt(e) ? 'ew-resize' : ''; return; }
+    var r = c.getBoundingClientRect(), f = (e.clientX - r.left) / r.width - barDrag.grab;
+    if (barDrag.side === 'left') barDrag.left = clampBar(f); else barDrag.right = clampBar(1 - f);
+    barDrag.moved = true;
+    drawPreview();
+  }
+
+  // Sent once, on release, so the phone and other tabs aren't flooded.
+  function barUp() {
+    if (!barDrag) return;
+    var d = barDrag;
+    barDrag = null;
+    barClickBlock = true;  // the click that follows isn't a focus click
+    setTimeout(function () { barClickBlock = false; }, 0);
+    if (!d.moved || !conn) { drawPreview(); return; }
+    var patch = {};
+    patch[d.side] = round3(d[d.side]);
+    sendBars(patch, { enabled: true, left: round3(d.left), right: round3(d.right) });
+  }
+
+  function barCancel() {
+    if (!barDrag) return;
+    barDrag = null;
+    drawPreview();
+  }
+
+  async function sendBars(patch, show) {
+    var c = conn;
+    if (!c) return;
+    barPending = show;
+    drawPreview();
+    try {
+      var r = await c.api('POST', '/camera', { bars: patch });
+      if (conn === c) c.camera = r.settings;
+    } catch (e) {
+      notice('Couldn\'t change the side bars: ' + e.message, 'error');
+    }
+    if (conn !== c) return;
+    barPending = null;
+    renderCameraValues();
+  }
+
+  function toggleBars(on) {
+    if (!barsKnown()) return;
+    var b = conn.camera.bars, patch = { enabled: on };
+    if (on && !b.left && !b.right) patch.left = patch.right = BAR_DEFAULT;
+    sendBars(patch, { enabled: on, left: patch.left != null ? patch.left : b.left, right: patch.right != null ? patch.right : b.right });
+  }
+
+  function renderBarsControl() {
+    var box = $('tt-camera'), row = box.querySelector('[data-row="bars"]');
+    if (!row) return;
+    var known = barsKnown();
+    row.hidden = !known;
+    if (!known) return;
+    var on = (barPending || conn.camera.bars).enabled;
+    var busy = jobActive(conn.job);
+    var input = row.querySelector('[data-bars="enabled"]');
+    input.checked = on;
+    input.disabled = busy;
+    row.querySelector('[data-note="bars"]').textContent = !on ? 'Hide the light box\'s edges in the views and the spin'
+      : busy ? 'Fixed while the phone is busy'
+      : 'Drag the white lines on the picture. What\'s past them is painted over.';
+  }
+
   function previewClick(e) {
+    if (barClickBlock || barDrag) return;
     if (!conn || !lastBitmap) return;
     var r = $('tt-preview').getBoundingClientRect();
     var x = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
@@ -898,6 +1046,18 @@
         title: 'Forget the spot you clicked; focus follows the picture again',
         onclick: function () { clearFocusPoint(); } }),
     ]));
+
+    if (caps.bars) {  // phones from before the side bars don't report them
+      var barsRow = cameraRow('Side bars', [
+        el('label', { class: 'tt-inline' }, [el('input', { type: 'checkbox', 'data-bars': 'enabled' }), ' On']),
+        el('span', { class: 'tt-cam-note', 'data-note': 'bars' }),
+      ], 'bars');
+      barsRow.classList.add('tt-bars-row');
+      barsRow.title = 'For badges narrower than the light box: past the bars, the views and the spin are painted over with the background, so the box\'s edges don\'t show. Extra shots don\'t get them. The phone keeps them from badge to badge.';
+      box.appendChild(barsRow);
+      var barsInput = barsRow.querySelector('[data-bars="enabled"]');
+      barsInput.addEventListener('change', function () { toggleBars(barsInput.checked); });
+    }
 
     var more = el('details', { class: 'tt-cam-more' });
     more.open = !!store.cameraMore;
@@ -1021,6 +1181,8 @@
     show('shutterNs', s.exposureMode === 'manual');
     show('focusDiopters', s.focusMode === 'manual');
     show('kelvin', s.whiteBalance === 'kelvin');
+    renderBarsControl();
+    drawPreview();  // the bars may have moved
   }
 
   async function setCamera(patch) {
@@ -1077,7 +1239,7 @@
       } else if (cal.state === 'stale') {
         calEl.appendChild(el('div', { class: 'tt-warn', text: 'Calibration out of date' + (cal.reason ? ': ' + cal.reason : '') + '. Calibrate again.' }));
       } else {
-        calEl.appendChild(el('div', { class: 'tt-warn', text: 'Not calibrated. Auto capture and checked moves need it.' }));
+        calEl.appendChild(el('div', { class: 'tt-warn', text: 'Not calibrated. Moving shots with Auto table, and checked moves, need it.' }));
       }
     }
     var front = st.turntable.frontRingDeg;
@@ -1107,6 +1269,8 @@
     var camLocked = conn.offline || (busy && conn.job.kind !== 'move');
     $('tt-camera').disabled = camLocked;
     $('tt-camera').title = conn.offline ? 'Can\'t reach the phone' : camLocked ? 'Camera settings are locked while a sequence runs' : '';
+    if (jobActive(conn.job) && barDrag) barCancel();  // a job started mid-drag: the phone would refuse it
+    renderBarsControl();
     renderCameraState();
     if (!conn.ring || !cam) renderAngle();
     renderSummary();
@@ -1226,28 +1390,42 @@
     }
   }
 
-  // Auto capture only appears when the phone can drive the table (IR), and
-  // only works once it's calibrated. Both, Stills and Spin are by hand: the
-  // phone's prompts say what to do with the table.
+  // The two ways to capture (Spec.md, Two ways to capture): moving shots (the
+  // table turns and the phone takes the views as the ring passes them; with
+  // IR and Auto table the phone starts and stops it) or by hand (a prompt per
+  // view, then Record spin and Stop). "As set on the phone" leaves `moving`
+  // out, so the phone's Moving shots switch decides; the API doesn't say
+  // which way that's set.
+  function captureMode() { var m = $('tt-mode').value; return m === 'moving' || m === 'hand' ? m : 'phone'; }
+  function autoTable(ir) { return !!ir && $('tt-auto-table').checked; }
+
   function renderCaptureButtons(busy, ir, cam) {
-    var autoBtn = $('tt-auto-capture'), hint = $('tt-capture-hint');
-    autoBtn.hidden = !ir;
-    autoBtn.disabled = busy || !cam || !calibrated();
-    autoBtn.title = calibrated() ? 'The phone turns the table: four stills, then the spin' : 'Calibrate the turntable first';
-    $('tt-capture-both').disabled = busy || !cam;
-    $('tt-capture-stills').disabled = busy || !cam;
-    $('tt-capture-spin').disabled = busy || !cam;
+    var hint = $('tt-capture-hint'), mode = captureMode(), auto = autoTable(ir);
+    $('tt-auto-table-label').hidden = !ir;
+    $('tt-auto-table').disabled = busy || mode === 'hand';
+    $('tt-mode').disabled = busy;
+    // Moving shots with Auto table need the calibration (409 not_calibrated);
+    // with the phone's switch it's left to the phone to answer.
+    var needsCal = mode === 'moving' && auto && !calibrated();
+    ['tt-capture-both', 'tt-capture-stills', 'tt-capture-spin'].forEach(function (id) {
+      $(id).disabled = busy || !cam || needsCal;
+    });
     var setLabel = selectedSet();
     var where = setLabel ? ' Shots go in the extra set "' + setLabel + '".' : '';
-    var byHand = 'you work the table, following the phone\'s instructions (start it turning and stop it when told, or turn it to each view, depending on the phone\'s capture method).';
+    var moving = 'Moving shots: the table turns and the phone takes the four views (front, 90°, back, 270°) as the encoder ring passes each, then records the spin. ' +
+      (auto ? 'The phone starts the table, sets its speed, stops it and brings it back to the front.'
+            : 'Start the table turning when the phone says (slowest speed is sharpest), and stop it when told.');
+    var hand = 'By hand: for each view, turn the table (or the badge) and press Capture in the prompt. Then Record spin, turn it once round, and Stop. No ring or turntable needed.';
     if (!cam) {
       hint.textContent = 'The phone isn\'t on its Camera screen. Open it there, or with Open camera on phone on the preview, to capture.';
-    } else if (!ir) {
-      hint.textContent = 'This phone can\'t drive the turntable, so ' + byHand + where;
-    } else if (!calibrated()) {
-      hint.textContent = 'Auto capture needs the turntable calibrated (Calibrate, above). Until then, use the other buttons: ' + byHand + where;
+    } else if (needsCal) {
+      hint.textContent = 'Moving shots with Auto table need the turntable calibrated (Calibrate, above). Or untick Auto table and start the table yourself, or capture by hand.' + where;
+    } else if (mode === 'moving') {
+      hint.textContent = moving + where;
+    } else if (mode === 'hand') {
+      hint.textContent = hand + where;
     } else {
-      hint.textContent = 'Auto capture: the phone turns the table for the four stills (front, 90°, back, 270°), then records the spin. With the other buttons, ' + byHand + where;
+      hint.textContent = 'The phone\'s Moving shots switch picks the way. ' + moving + ' ' + hand + where;
     }
   }
 
@@ -1261,10 +1439,11 @@
       setLabel = $('tt-set-label').value.trim();
       if (!setLabel) { notice('Give the extra set a label, e.g. "With SAOs installed", or choose Main views.', 'error'); $('tt-set-label').focus(); return; }
     }
-    var body = kind === 'auto' ? { stills: true, video: true, auto: true }
-      : kind === 'both' ? { stills: true, video: true, auto: false }
-      : kind === 'stills' ? { stills: true, video: false, auto: false }
-      : { stills: false, video: true, auto: false };
+    // auto is false without IR, which would otherwise be 422 unsupported, and
+    // by hand, where the phone ignores it.
+    var ir = !!(conn && conn.status && conn.status.turntable.irAvailable), mode = captureMode();
+    var body = { stills: kind !== 'spin', video: kind !== 'stills', auto: mode !== 'hand' && autoTable(ir) };
+    if (mode !== 'phone') body.moving = mode === 'moving';
     body.setLabel = setLabel;
     startCaptureJob('/capture', body);
   }
@@ -1272,7 +1451,11 @@
   // "The phone is capturing Mk9", "Calibration" and so on, for the job line.
   function jobTitle(j) {
     var name = JOB_NAMES[j.kind] || j.kind;
-    var into = j.target && j.target.kind === 'session' && j.target.name ? ' into ' + j.target.name : '';
+    // The job's params say which way the phone captures (its switch, when
+    // the editor left `moving` out).
+    var p = j.params || {};
+    if (j.kind === 'capture' && typeof p.moving === 'boolean') name += p.moving ? ' (moving shots' + (p.auto === false ? ', you start the table' : '') + ')' : ' (by hand)';
+    var into =j.target && j.target.kind === 'session' && j.target.name ? ' into ' + j.target.name : '';
     return (j.source === 'phone' ? 'On the phone: ' : '') + name + into;
   }
 
@@ -1299,7 +1482,7 @@
              'It carries on there, and Stop on the phone works. ' +
              (stopHeld ? 'Your stop will be sent as soon as the phone answers again.' : 'Stop here is sent once the phone answers again.');
     }
-    else if (active) text = (j.source === 'phone' || j.target && j.target.kind === 'session' ? title + ': ' : '') + (j.progress && j.progress.text ? j.progress.text : name + '…');
+    else if (active) text = (j.source === 'phone' || j.target && j.target.kind === 'session' || j.kind === 'capture' && j.params && typeof j.params.moving === 'boolean' ? title + ': ' : '') + (j.progress && j.progress.text ? j.progress.text : name + '…');
     else if (j.state === 'done') text = title + ' done' + (j.result && j.result.complete === false ? ' (stopped early' + by + '; the shots taken are kept)' : '') + '.';
     else if (j.state === 'aborted') text = title + ' stopped' + by + '.';
     else text = title + ' failed: ' + (j.error ? j.error.message : 'unknown error');
@@ -1411,7 +1594,7 @@
       var answers = $('tt-prompt-answers');
       answers.innerHTML = '';
       p.answers.forEach(function (a) {
-        answers.appendChild(el('button', { type: 'button', class: a === 'stop' ? 'btn-secondary' : 'btn-primary', text: answerLabel(p, a),
+        answers.appendChild(el('button', { type: 'button', class: a === 'stop' || a === 'skip' ? 'btn-secondary' : 'btn-primary', text: answerLabel(p, a),
           onclick: function () { answerPrompt(p.id, a); } }));
       });
       $('tt-prompt-dial').hidden = p.targetTableDeg == null;
@@ -1953,6 +2136,10 @@
     $('tt-pair-cancel').addEventListener('click', function () { $('tt-pair-form').hidden = true; pairingId = null; });
 
     $('tt-preview').addEventListener('click', previewClick);
+    $('tt-preview').addEventListener('pointerdown', barDown);
+    $('tt-preview').addEventListener('pointermove', barMove);
+    $('tt-preview').addEventListener('pointerup', barUp);
+    $('tt-preview').addEventListener('pointercancel', barCancel);
     $('tt-ov-grid').addEventListener('change', drawPreview);
     $('tt-ov-ring').addEventListener('change', drawPreview);
     document.addEventListener('visibilitychange', function () { if (conn) conn.sendPreview(); });
@@ -1975,7 +2162,10 @@
       var deg = ((parseFloat($('tt-goto-deg').value) || 0) % 360 + 360) % 360;
       startJob('/turntable/move', { to: deg });
     });
-    $('tt-auto-capture').addEventListener('click', function () { startCapture('auto'); });
+    $('tt-mode').value = ['phone', 'moving', 'hand'].indexOf(store.captureMode) >= 0 ? store.captureMode : 'phone';
+    $('tt-auto-table').checked = store.autoTable !== false;
+    $('tt-mode').addEventListener('change', function () { store.captureMode = this.value; saveStore(); if (conn && conn.status) renderStatus(); });
+    $('tt-auto-table').addEventListener('change', function () { store.autoTable = this.checked; saveStore(); if (conn && conn.status) renderStatus(); });
     $('tt-capture-both').addEventListener('click', function () { startCapture('both'); });
     $('tt-capture-stills').addEventListener('click', function () { startCapture('stills'); });
     $('tt-capture-spin').addEventListener('click', function () { startCapture('spin'); });

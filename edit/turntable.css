@@ -113,7 +113,7 @@
   overflow: hidden;
   min-height: 120px;
 }
-.tt-preview { display: block; width: 100%; height: auto; cursor: crosshair; }
+.tt-preview { display: block; width: 100%; height: auto; cursor: crosshair; touch-action: pan-y; /* side bars drag sideways */ }
 .tt-preview-msg[hidden], .tt-countdown[hidden] { display: none; }
 .tt-preview-msg {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
@@ -143,6 +143,8 @@
 .tt-focus-line { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; min-width: 0; }
 .tt-focus-line .tt-cam-note { flex: 1; }
 .tt-focus-line button[hidden] { display: none; }
+.tt-bars-row { grid-column: 1 / -1; }
+.tt-bars-row .tt-cam-note { flex: 1; }
 .tt-cam-more { grid-column: 1 / -1; }
 .tt-cam-more summary { cursor: pointer; font-size: 12px; color: var(--text-muted); }
 .tt-cam-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; margin-top: 8px; }
@@ -165,7 +167,7 @@
 .tt-hint { font-size: 12px; color: var(--text-muted); line-height: 1.45; }
 .tt-target { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; line-height: 1.45; }
 .tt-target.unjoined { color: #f0b429; }
-#tt-auto-capture[hidden] { display: none; }
+#tt-auto-table-label[hidden] { display: none; }
 #tt-extra-other { flex: 1; min-width: 140px; }
 #tt-extra-other[hidden] { display: none; }
 .tt-stop[hidden] { display: none; }

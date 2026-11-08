@@ -131,11 +131,20 @@ permalink: /edit/
                   <option value="Lit up"></option>
                 </datalist>
               </div>
+              <div class="tt-row tt-mode-choice">
+                <label class="tt-inline">Mode:
+                  <select id="tt-mode">
+                    <option value="phone">As set on the phone</option>
+                    <option value="moving">Moving shots</option>
+                    <option value="hand">By hand</option>
+                  </select>
+                </label>
+                <label class="tt-inline" id="tt-auto-table-label" title="The phone starts the table, sets its speed, stops it and brings it back to the front, with IR. Untick to start and stop it yourself."><input type="checkbox" id="tt-auto-table" checked> Auto table</label>
+              </div>
               <div class="tt-row">
-                <button type="button" id="tt-auto-capture" class="btn-primary">Auto capture</button>
-                <button type="button" id="tt-capture-both" class="btn-secondary" title="The four stills, then the spin, with the phone telling you what to do with the table">Capture both</button>
-                <button type="button" id="tt-capture-stills" class="btn-secondary" title="The four stills: the phone tells you when to turn the table">Capture stills</button>
-                <button type="button" id="tt-capture-spin" class="btn-secondary" title="The spin video: the phone tells you when to start and stop the table">Capture spin</button>
+                <button type="button" id="tt-capture-both" class="btn-primary" title="The four stills, then the spin">Capture both</button>
+                <button type="button" id="tt-capture-stills" class="btn-secondary" title="The four stills only">Capture stills</button>
+                <button type="button" id="tt-capture-spin" class="btn-secondary" title="The spin video only">Capture spin</button>
                 <button type="button" id="tt-stop" class="tt-stop" hidden>■ Stop</button>
               </div>
               <div id="tt-capture-hint" class="tt-hint"></div>

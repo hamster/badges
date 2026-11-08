@@ -4,7 +4,7 @@
 
 - [ ] Seamless looping spin videos - the rules are in badge-turntable's Spec.md ("Seamless spin loop"): record from a steady speed, cut exactly one revolution after a lead-in, match frames when there's no ring. The app's auto spin trims with the ring; the by-hand and no-ring paths still need doing (the app's README, Next)
 - [ ] Badge Turntable Android app (now its own repo, hamster/badge-turntable) - builds and runs on the OnePlus 9 Pro; next steps are in its README under Handoff → Next (IR on the table, the last round on the phone)
-- [ ] Try the editor's phone sessions, capture target and Open camera on phone against the real app (tested only against the mock so far)
+- [ ] Try the editor's phone sessions, capture target, Open camera on phone, side bars and the two capture modes against the real app (tested only against the mock so far; the mock in badge-turntable doesn't have the side bars or `moving` yet)
 - [ ] Remote control end to end - the app's server and the editor panel are both written; test the panel against the real phone, including from GitHub Pages (Local Network Access prompt)
 
 ## Done
@@ -13,6 +13,8 @@
 - [x] Editor Turntable panel: Auto capture plus by-hand Capture both / stills / spin, simpler camera controls with a held focus point, and a Stop that survives the phone dropping off the network
 - [x] JAYEGT turntable remote codes captured and every button's behaviour mapped (badge-turntable's ir-tools/, bundled as the app's jayegt-5.74.ir)
 - [x] Editor Turntable panel follows Remote-API.md of Nov 7, 2026: phone sessions (list, notes, Open as new badge, add, delete, removed after saving), join or start a new set, Open camera on phone, no originals
+- [x] Editor side bars (Remote-API.md, Nov 7 night): a Side bars switch, shading past the bars on the preview, and draggable lines sent to the phone on release
+- [x] Editor capture modes (Remote-API.md, Nov 8): Auto capture replaced by a Mode choice (as set on the phone, moving shots, by hand) and Auto table for Capture both / stills / spin, and the by-hand spin prompts (Record spin / Skip video, then Stop and keep / Discard)
 - [x] Encoder ring printed and fitted on the JAYEGT: black band, 45 markers at 8 degrees, generated at 460.9 mm (badge-turntable's encoder-ring/)
 - [x] Perspective-corrected ring angle fit, checked against simulated camera images
 - [x] Publish-time WebP thumbnails (640 px) and gallery copies (1600 px); videos over 10 MB or in HDR re-encoded (.github/scripts/optimize_media.py)
