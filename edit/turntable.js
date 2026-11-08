@@ -1324,7 +1324,7 @@
     }
     a.textContent = (r.frontDeg != null ? 'Front ' + fmtSigned(r.frontDeg) + ' · ' : '') +
       (r.tableDeg != null ? 'Table ' + fmtAngle(r.tableDeg) + ' · ' : '') + 'ring ' + fmtAngle(r.ringDeg) +
-      ' · ' + markers + ' markers' + (r.tableDeg == null ? ' · not calibrated' : '');
+      ' · ' + markers + ' markers';  // the calibration line says whether it's calibrated, and what needs it
   }
 
   // -------------------------------------------------------------------------
