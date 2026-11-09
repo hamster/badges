@@ -42,7 +42,18 @@ links: []
 images: 
   - filename: "badge-thumb-4.jpg"
     caption: ""
-videos: []
+    highlight: true
+  - filename: "front.jpg"
+    caption: "Front"
+  - filename: "side-090.jpg"
+    caption: "Side (90°)"
+  - filename: "back.jpg"
+    caption: "Back"
+  - filename: "side-270.jpg"
+    caption: "Side (270°)"
+videos: 
+  - filename: "spin.mp4"
+    caption: "Spin"
 status: stub
 ---
 
