@@ -8,13 +8,14 @@ permalink: /edit/turntable-setup/
 <div class="ts-page">
   <p class="ts-back"><a href="{{ '/edit/' | relative_url }}">← Back to the editor</a></p>
   <h1 class="text-accent font-mono">Setting up the turntable</h1>
-  <p class="ts-lede">The badge photos on this site are taken on a motorised turntable in a light box, by the <a href="https://github.com/hamster/badge-turntable" target="_blank" rel="noopener"><strong>Badge Turntable</strong></a> Android app. A printed band of markers round the turntable's rim tells the app exactly which way the badge is facing. This page explains how that works, makes the marker band and a platter sticker for your turntable, and walks through setting it all up.</p>
+  <p class="ts-lede">The badge photos on this site are taken on a motorised turntable in a light box, by the <a href="https://github.com/hamster/badge-turntable" target="_blank" rel="noopener"><strong>Badge Turntable</strong></a> Android app. A printed band of markers round the turntable's rim tells the app exactly which way the badge is facing. This page explains how that works, makes the marker band and a platter sticker for your turntable and a stand to hold the badge, and walks through setting it all up.</p>
 
   <nav class="ts-toc">
     <a href="#how">How it works</a>
     <a href="#app">The app</a>
     <a href="#make">Make the band and sticker</a>
     <a href="#fit">Fit them</a>
+    <a href="#stand">Badge stand</a>
     <a href="#setup">Set up the app and editor</a>
     <a href="https://github.com/hamster/badge-turntable" target="_blank" rel="noopener">The app on GitHub ↗</a>
   </nav>
@@ -194,6 +195,119 @@ permalink: /edit/turntable-setup/
     </div>
   </section>
 
+  <section id="stand">
+    <h2>Make a badge stand</h2>
+    <div class="st-intro">
+      <figure class="ts-figure st-figure">
+        <img class="ts-shot" src="{{ '/assets/images/turntable-stand.webp' | relative_url }}" width="900" height="700" loading="lazy" alt="The stand assembled: two clear acrylic uprights joined by a crossbar, holding a badge upright by its bottom edge">
+        <figcaption>Two uprights and a crossbar, holding a badge (green) by its bottom edge.</figcaption>
+      </figure>
+      <div>
+        <p>Most badges won't stand up by themselves, so they stand on the platter in a small laser-cut acrylic stand. Two <strong>uprights</strong> have a notch at the top that the badge's bottom edge drops into. A <strong>crossbar</strong> slots into both from below, with a half-lap joint, and holds them upright and apart. Each crossbar sets one spacing, so the sheet has a few, for narrow to wide badges: use the widest that keeps both uprights under the badge.</p>
+        <p>The joints are only as good as the slot width, and acrylic sold as 3 mm is often anywhere from 2.8 to 3.2 mm, and the laser's kerf widens every cut. So cut the <strong>test comb</strong> first, from the same sheet. Try each gap on a scrap of that sheet, and use the one that pushes on by hand and holds without wobbling.</p>
+      </div>
+    </div>
+
+    <form id="st-form" class="ts-form" autocomplete="off">
+      <fieldset>
+        <legend>Your acrylic and badges</legend>
+        <label>Slot width (mm), from the test comb
+          <input name="slot" type="number" min="0.5" step="0.05" required>
+        </label>
+        <label>Crossbar spacings (mm), centre to centre
+          <input name="spacings" type="text" inputmode="decimal" placeholder="e.g. 20, 40, 60">
+        </label>
+        <label>Badge pocket width (mm)
+          <input name="pocketW" type="number" min="0.5" step="0.05" required>
+        </label>
+        <label>Uprights
+          <input name="uprights" type="number" min="1" max="6" step="1" required>
+        </label>
+        <label class="ts-check"><input name="comb" type="checkbox"> Include the test comb</label>
+        <label class="ts-check"><input name="engrave" type="checkbox"> Engrave the labels</label>
+      </fieldset>
+      <details class="ts-advanced">
+        <summary>More settings</summary>
+        <div class="ts-advanced-body">
+          <label>Test comb: narrowest gap (mm)
+            <input name="combFrom" type="number" min="0.5" step="0.05">
+          </label>
+          <label>Test comb: step (mm)
+            <input name="combStep" type="number" min="0.01" step="0.01">
+          </label>
+          <label>Test comb: gaps
+            <input name="combCount" type="number" min="1" max="12" step="1">
+          </label>
+          <label>Slot chamfer (mm)
+            <input name="lead" type="number" min="0" step="0.05">
+          </label>
+          <label>Pocket depth (mm)
+            <input name="pocketD" type="number" min="0" step="0.5">
+          </label>
+          <label>Flare width (mm)
+            <input name="flareW" type="number" min="0.5" step="0.5">
+          </label>
+          <label>Flare depth (mm)
+            <input name="flareD" type="number" min="0" step="0.5">
+          </label>
+          <label>Upright depth (mm)
+            <input name="upL" type="number" min="10" step="0.5">
+          </label>
+          <label>Upright height (mm)
+            <input name="upH" type="number" min="10" step="0.5">
+          </label>
+          <label>Upright corner radius (mm)
+            <input name="upR" type="number" min="0" step="0.5">
+          </label>
+          <label>Crossbar height (mm)
+            <input name="cbH" type="number" min="4" step="0.5">
+          </label>
+          <label>Crossbar overhang (mm)
+            <input name="cbEnd" type="number" min="3" step="0.5">
+          </label>
+          <label>Space between parts (mm)
+            <input name="gap" type="number" min="1" step="0.5">
+          </label>
+          <label>Label height (mm)
+            <input name="labelSize" type="number" min="1" step="0.5">
+          </label>
+        </div>
+        <p><button type="button" id="st-reset" class="btn-secondary">Back to the defaults</button></p>
+      </details>
+    </form>
+
+    <div class="ts-measure-help">
+      <span><b>Slot width:</b> the comb gap that fits your acrylic snugly. Too tight cracks the acrylic; too loose and the uprights lean.</span>
+      <span><b>Pocket width:</b> the badge's board thickness plus about 0.4 mm, so 2.0 mm for the usual 1.6 mm board. The flare above it guides the badge in.</span>
+      <span><b>Spacings:</b> how far apart the uprights stand, one crossbar for each. The badge's width has to reach past both uprights.</span>
+    </div>
+
+    <div id="st-error" class="ts-error" hidden></div>
+    <div id="st-stats" class="ts-stats"></div>
+
+    <div class="ts-output">
+      <div class="ts-output-head">
+        <h3>Cutting sheet</h3>
+        <div class="ts-actions">
+          <button type="button" id="st-svg" class="btn-primary">Download SVG</button>
+          <button type="button" id="st-comb-svg" class="btn-secondary">Test comb only</button>
+          <a class="btn-secondary st-scad" href="{{ '/assets/turntable/badge_stand.scad' | relative_url }}" download>OpenSCAD file</a>
+        </div>
+      </div>
+      <p id="st-note" class="ts-note"></p>
+      <div id="st-preview" class="ts-preview st-preview"></div>
+    </div>
+
+    <h3>Cutting and putting it together</h3>
+    <ol>
+      <li><strong>Import the SVG</strong> into LightBurn (or your laser's software). It comes in at its real size, with the cuts in <strong>black</strong> (LightBurn's layer 00) and the engraved labels in <strong>blue</strong> (layer 01) as single lines. Set black to cut through your acrylic, and blue to a light <strong>Line</strong> engrave, or turn it off.</li>
+      <li><strong>Leave the protective film on</strong> while cutting, to keep the faces clean, and peel it off after.</li>
+      <li><strong>Assemble:</strong> each upright's slot faces down and the crossbar's slots face up. Push an upright down onto each end of the crossbar until the bottoms are level. The spacing engraved on the crossbar is the distance between the uprights' centres.</li>
+      <li><strong>Stand it in the middle of the platter</strong>, square to the sticker's 0° line, and drop the badge into both pockets, facing the camera.</li>
+    </ol>
+    <p>The <a href="{{ '/assets/turntable/badge_stand.scad' | relative_url }}" download>OpenSCAD file</a> makes the same parts, with a 3D preview of the assembled stand. Open it in OpenSCAD, set the numbers in the Customizer (Window → Customizer), and export the <code>cut</code> and <code>engrave</code> modes as two SVGs.</p>
+  </section>
+
   <section id="setup">
     <h2>Set up the app and editor</h2>
     <ol>
@@ -208,3 +322,4 @@ permalink: /edit/turntable-setup/
 </div>
 
 <script type="module" src="{{ '/edit/turntable-setup.js' | relative_url }}"></script>
+<script type="module" src="{{ '/edit/turntable-stand.js' | relative_url }}"></script>

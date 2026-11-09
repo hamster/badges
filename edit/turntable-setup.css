@@ -41,7 +41,7 @@
 .ts-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-muted); }
 .ts-form label.ts-check, .ts-form label.ts-radio { flex-direction: row; align-items: center; gap: 8px; color: var(--text); font-size: 14px; }
 .ts-form label.ts-check { align-self: end; padding-bottom: 8px; }
-.ts-form input[type="number"], .ts-form select, .ts-fix input {
+.ts-form input[type="number"], .ts-form input[type="text"], .ts-form select, .ts-fix input {
   font: inherit; font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 8px; min-width: 0;
 }
 .ts-form input:focus, .ts-form select:focus, .ts-fix input:focus { outline: none; border-color: var(--accent); }
@@ -73,6 +73,16 @@
 .ts-fix label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-muted); }
 .ts-fix input { width: 160px; }
 .ts-fix-result { flex: 1; min-width: 200px; padding-bottom: 8px; }
+
+/* The badge stand */
+.st-intro { display: grid; grid-template-columns: minmax(0, 300px) 1fr; gap: 8px 24px; align-items: start; margin-bottom: 16px; }
+.st-intro p { margin: 0 0 12px; }
+@media (max-width: 640px) { .st-intro { grid-template-columns: 1fr; } }
+.st-figure { margin: 0; }
+.ts-page a.btn-secondary { display: inline-block; color: var(--text); text-decoration: none; line-height: normal; }
+.st-sheet { max-width: 100%; }
+.st-sheet path { stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
+.ts-form details p { margin: 12px 0 0; }
 
 /* Printing: only the sheets, at their real size. The @page size is set when printing. */
 #ts-print-area { display: none; }
